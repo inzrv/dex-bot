@@ -1,0 +1,139 @@
+# Blockchain Sandbox
+
+This directory contains the EVM side of the project: local chain tooling,
+Solidity contracts, deployment scripts, and local deployment outputs.
+
+For now, it is intentionally small. The goal is to create a reproducible local
+environment where the future C++ bot can interact with contracts without using
+a public RPC endpoint or spending real gas.
+
+Current contents:
+
+- `src/tokens/` - minimal ERC-20 contracts used by the sandbox.
+- `config/local.anvil.env` - local chain accounts, keys, RPC URL, and Anvil
+  parameters.
+- `bin/deploy-local.zsh` - starts or reuses a local Anvil chain, builds
+  contracts, deploys the sandbox tokens, checks them, and writes deployment
+  output.
+- `bin/cleanup-local.zsh` - stops the Anvil process started by the deploy
+  script and removes local runtime files.
+- `deployments/` - local runtime output such as deployed addresses, Anvil logs,
+  and Anvil PID files. These files are ignored by Git.
+
+## Local Workflow
+
+From the repository root:
+
+```shell
+blockchain/bin/deploy-local.zsh
+```
+
+This creates a ready local blockchain environment:
+
+1. Starts `anvil` if no local chain is running at `RPC_URL`.
+2. Verifies that the local chain responds by reading the current block number.
+3. Runs `forge build`.
+4. Deploys `TokenA` and `TokenB`.
+5. Reads `symbol()` from both token contracts.
+6. Saves deployment output to `blockchain/deployments/local.json`.
+
+Example output file:
+
+```json
+{
+  "chainId": 31337,
+  "rpcUrl": "http://127.0.0.1:8545",
+  "deployer": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+  "contracts": {
+    "tokenA": "0x...",
+    "tokenB": "0x..."
+  },
+  "checks": {
+    "tokenASymbol": "TKA",
+    "tokenBSymbol": "TKB"
+  }
+}
+```
+
+To stop and clean the local environment:
+
+```shell
+blockchain/bin/cleanup-local.zsh
+```
+
+The cleanup script removes:
+
+- `blockchain/deployments/local.json`
+- `blockchain/deployments/anvil.local.log`
+- `blockchain/deployments/anvil.local.pid`
+
+It only stops the Anvil process recorded in `anvil.local.pid`, and it checks
+that the saved PID belongs to an `anvil` process before killing it.
+
+## Running Twice
+
+If `deploy-local.zsh` sees a running chain at `RPC_URL`, it checks whether that
+chain was started by this workflow. If the saved PID is missing or does not
+belong to `anvil`, the script refuses to deploy.
+
+If the running chain is ours, the script asks for confirmation before deploying
+new contracts. Re-running deployment on the same chain creates new token
+contracts and overwrites `deployments/local.json`.
+
+For a fresh environment:
+
+```shell
+blockchain/bin/cleanup-local.zsh
+blockchain/bin/deploy-local.zsh
+```
+
+## Tools
+
+This directory uses Foundry:
+
+- `anvil` - local EVM node.
+- `forge` - Solidity compiler, test runner, and deployment helper.
+- `cast` - command-line JSON-RPC and contract interaction tool.
+
+Useful manual commands:
+
+```shell
+cd blockchain
+forge build
+cast block-number --rpc-url http://127.0.0.1:8545
+```
+
+## Local Parameters
+
+Local chain settings live in `config/local.anvil.env`.
+
+Network settings:
+
+- `RPC_URL` - local JSON-RPC endpoint.
+- `CHAIN_ID` - local chain ID, currently `31337`.
+- `MNEMONIC` - deterministic Anvil mnemonic.
+- `ACCOUNTS` - number of generated local accounts.
+- `BALANCE_ETH` - starting ETH balance for each generated account.
+
+Role settings:
+
+- `DEPLOYER_ADDRESS` / `DEPLOYER_PRIVATE_KEY` - deploys contracts and is the
+  current token minter.
+- `VICTIM_ADDRESS` / `VICTIM_PRIVATE_KEY` - reserved for future victim swap
+  scenarios.
+- `BOT_ADDRESS` / `BOT_PRIVATE_KEY` - reserved for the future C++ bot.
+- `TREASURY_ADDRESS` - reserved for future profit collection.
+
+These keys are deterministic Anvil development keys. They must never be used on
+real networks.
+
+## Contracts
+
+Current token contracts:
+
+- `SandboxERC20` - minimal ERC-20 implementation with a single `minter`.
+- `TokenA` - sandbox token with symbol `TKA`.
+- `TokenB` - sandbox token with symbol `TKB`.
+
+The contracts avoid external dependencies for now, so the sandbox can compile
+without installing packages.

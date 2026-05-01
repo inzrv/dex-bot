@@ -1,0 +1,25 @@
+# macOS
+.DS_Store
+
+# Editor / local tooling
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs and temporary files
+*.log
+*.tmp
+
+# Foundry build artifacts
+blockchain/cache/
+blockchain/out/
+
+# Local blockchain runtime files
+blockchain/deployments/*.json
+blockchain/deployments/*.log
+blockchain/deployments/*.pid
+!blockchain/deployments/.gitkeep
+
+# Notes
+notes.md
