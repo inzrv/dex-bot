@@ -1,0 +1,16 @@
+[project]
+name = "dex-local-block-builder"
+version = "0.1.0"
+description = "Local public mempool and private bundle service for the DEX backrun sandbox."
+requires-python = ">=3.9"
+dependencies = [
+  "fastapi>=0.110",
+  "uvicorn[standard]>=0.27",
+]
+
+[project.scripts]
+block-builder = "block_builder.main:main"
+
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
