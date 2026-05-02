@@ -43,6 +43,10 @@ This starts the same app without reload mode.
 ```text
 GET /health
 GET /ping
+POST /public/tx
+GET /public/tx/{hash}
+GET /public/pending
+WS  /ws/pending
 ```
 
 Example:
@@ -68,6 +72,49 @@ Expected response:
 ```json
 {"status":"ok"}
 ```
+
+Submit a transaction to the in-memory mempool:
+
+```shell
+curl -X POST http://127.0.0.1:9001/public/tx \
+  -H "Content-Type: application/json" \
+  -d '{
+    "hash": "0xabc",
+    "type": "0x2",
+    "chainId": "0x7a69",
+    "nonce": "0x0",
+    "from": "0x1111111111111111111111111111111111111111",
+    "to": "0x2222222222222222222222222222222222222222",
+    "value": "0x0",
+    "gas": "0x493e0",
+    "maxFeePerGas": "0x77359400",
+    "maxPriorityFeePerGas": "0x1",
+    "input": "0x"
+  }'
+```
+
+The transaction is stored with status `pending`.
+
+Read it back:
+
+```shell
+curl http://127.0.0.1:9001/public/tx/0xabc
+```
+
+List pending transactions:
+
+```shell
+curl http://127.0.0.1:9001/public/pending
+```
+
+Open a WebSocket stream for pending transactions:
+
+```shell
+wscat -c ws://127.0.0.1:9001/ws/pending
+```
+
+Then submit a transaction from another terminal. The WebSocket client receives
+one message for each new pending transaction.
 
 ## Planned Later
 
