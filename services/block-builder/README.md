@@ -44,8 +44,9 @@ This starts the same app without reload mode.
 GET /health
 GET /ping
 POST /public/tx
-GET /public/tx/{hash}
+GET /public/tx/{mempoolTxId}
 GET /public/pending
+POST /private/bundle
 WS  /ws/pending
 ```
 
@@ -79,13 +80,12 @@ Submit a transaction to the in-memory mempool:
 curl -X POST http://127.0.0.1:9001/public/tx \
   -H "Content-Type: application/json" \
   -d '{
-    "hash": "0xabc",
     "type": "0x2",
     "chainId": "0x7a69",
     "nonce": "0x0",
-    "from": "0x1111111111111111111111111111111111111111",
-    "to": "0x2222222222222222222222222222222222222222",
-    "value": "0x0",
+    "from": "0xa0Ee7A142d267C1f36714E4a8F75612F20a79720",
+    "to": "0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f",
+    "value": "0x1",
     "gas": "0x493e0",
     "maxFeePerGas": "0x77359400",
     "maxPriorityFeePerGas": "0x1",
@@ -94,11 +94,12 @@ curl -X POST http://127.0.0.1:9001/public/tx \
 ```
 
 The transaction is stored with status `pending`.
+The response contains a generated `mempoolTxId`.
 
 Read it back:
 
 ```shell
-curl http://127.0.0.1:9001/public/tx/0xabc
+curl http://127.0.0.1:9001/public/tx/<mempoolTxId>
 ```
 
 List pending transactions:
@@ -116,10 +117,49 @@ wscat -c ws://127.0.0.1:9001/ws/pending
 Then submit a transaction from another terminal. The WebSocket client receives
 one message for each new pending transaction.
 
+Mine a block with a bundle. The bundle can contain one or more transactions.
+For public mempool transactions, pass `mempoolTxId`; the builder resolves the
+transaction from the mempool and updates its status after mining:
+
+```shell
+curl -X POST http://127.0.0.1:9001/private/bundle \
+  -H "Content-Type: application/json" \
+  -d '{
+    "transactions": [
+      {
+        "mempoolTxId": "<mempoolTxId>"
+      }
+    ]
+  }'
+```
+
+The bundle can also contain direct private transactions, which are not looked up
+in the public mempool:
+
+```json
+{
+  "transactions": [
+    {
+      "mempoolTxId": "mp-..."
+    },
+    {
+      "type": "0x2",
+      "chainId": "0x7a69",
+      "nonce": "0x0",
+      "from": "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc",
+      "to": "0x...",
+      "value": "0x0",
+      "gas": "0x493e0",
+      "maxFeePerGas": "0x77359400",
+      "maxPriorityFeePerGas": "0x1",
+      "input": "0x..."
+    }
+  ]
+}
+```
+
 ## Planned Later
 
-- `POST /public/tx` for victim transactions.
-- `WS /public/pending` for the bot's pending transaction stream.
-- `POST /private/bundle` for bot bundles.
-- `GET /tx/{hash}` and `GET /bundle/{id}` for statuses.
-- JSON-RPC calls from the builder to Anvil.
+- Bundle status storage.
+- Configurable Anvil RPC URL instead of a hardcoded node address.
+- Raw signed transactions and `eth_sendRawTransaction`.

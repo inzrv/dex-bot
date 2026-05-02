@@ -137,11 +137,16 @@ TOKEN_A_SYMBOL="${TOKEN_A_SYMBOL%\"}"
 TOKEN_B_SYMBOL="${TOKEN_B_SYMBOL#\"}"
 TOKEN_B_SYMBOL="${TOKEN_B_SYMBOL%\"}"
 
+# Leave the deployed sandbox in builder-controlled mining mode.
+cast rpc evm_setAutomine false --rpc-url "${RPC_URL}" >/dev/null
+AUTOMINE=false
+
 # Save deployment output for the future C++ bot and for manual inspection.
 cat >"${ADDRESSES_FILE}" <<EOF
 {
   "chainId": ${CHAIN_ID},
   "rpcUrl": "${RPC_URL}",
+  "automine": ${AUTOMINE},
   "deployer": "${DEPLOYER_ADDRESS}",
   "contracts": {
     "tokenA": "${TOKEN_A_ADDRESS}",
@@ -158,4 +163,5 @@ echo "TokenA symbol: ${TOKEN_A_SYMBOL}"
 echo "TokenA address: ${TOKEN_A_ADDRESS}"
 echo "TokenB symbol: ${TOKEN_B_SYMBOL}"
 echo "TokenB address: ${TOKEN_B_ADDRESS}"
+echo "Automine: ${AUTOMINE}"
 echo "Saved deployment addresses to ${ADDRESSES_FILE}"

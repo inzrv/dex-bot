@@ -1,0 +1,52 @@
+from __future__ import annotations
+
+import json
+from typing import Any, Optional
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
+
+from .transaction import Transaction
+
+
+class AnvilClient:
+    def __init__(self, rpcUrl: str) -> None:
+        self._rpcUrl = rpcUrl
+        self._requestId = 0
+
+    def sendTransaction(self, transaction: Transaction) -> str:
+        return self._rpc("eth_sendTransaction", [transaction.toRpcParams()])
+
+    def mineBlock(self) -> None:
+        self._rpc("evm_mine", [])
+
+    def getReceipt(self, txHash: str) -> Optional[dict[str, Any]]:
+        return self._rpc("eth_getTransactionReceipt", [txHash])
+
+    def _rpc(self, method: str, params: list[Any]) -> Any:
+        self._requestId += 1
+        body = json.dumps(
+            {
+                "jsonrpc": "2.0",
+                "id": self._requestId,
+                "method": method,
+                "params": params,
+            }
+        ).encode("utf-8")
+
+        request = Request(
+            self._rpcUrl,
+            data=body,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+
+        try:
+            with urlopen(request, timeout=10) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+        except (HTTPError, URLError) as error:
+            raise RuntimeError(f"Anvil RPC request failed: {error}") from error
+
+        if "error" in payload:
+            raise RuntimeError(f"Anvil RPC error: {payload['error']}")
+
+        return payload.get("result")

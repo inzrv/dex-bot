@@ -6,7 +6,7 @@ from typing import Any, Optional
 
 @dataclass(frozen=True)
 class Transaction:
-    hash: str
+    hash: Optional[str]
     type: Optional[str]
     chainId: Optional[str]
     nonce: str
@@ -22,7 +22,7 @@ class Transaction:
     @classmethod
     def fromJson(cls, data: dict[str, Any]) -> "Transaction":
         return cls(
-            hash=_required_str(data, "hash"),
+            hash=_optional_str(data, "hash"),
             type=_optional_str(data, "type"),
             chainId=_optional_str(data, "chainId"),
             nonce=_required_str(data, "nonce"),
@@ -51,6 +51,27 @@ class Transaction:
             "maxPriorityFeePerGas": self.maxPriorityFeePerGas,
             "input": self.input,
         }
+
+    def toRpcParams(self) -> dict[str, Any]:
+        params = {
+            "from": self.fromAddress,
+            "to": self.toAddress,
+            "nonce": self.nonce,
+            "value": self.value,
+            "gas": self.gas,
+            "data": self.input,
+        }
+
+        if self.gasPrice is not None:
+            params["gasPrice"] = self.gasPrice
+
+        if self.maxFeePerGas is not None:
+            params["maxFeePerGas"] = self.maxFeePerGas
+
+        if self.maxPriorityFeePerGas is not None:
+            params["maxPriorityFeePerGas"] = self.maxPriorityFeePerGas
+
+        return params
 
 
 def _required_str(data: dict[str, Any], key: str) -> str:
