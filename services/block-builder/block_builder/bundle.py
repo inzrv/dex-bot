@@ -24,6 +24,11 @@ class BundleItem:
             if record is None:
                 raise ValueError(f"mempool transaction '{mempoolTxId}' not found")
 
+            if record.status != "pending":
+                raise ValueError(
+                    f"mempool transaction '{mempoolTxId}' is '{record.status}', not 'pending'"
+                )
+
             return cls(mempoolTxId=mempoolTxId, transaction=record.transaction)
 
         return cls(mempoolTxId=None, transaction=Transaction.fromJson(data))
@@ -60,7 +65,7 @@ class BundleBuilder:
         self._anvil.mineBlock()
 
         receipts = [
-            self._anvil.getReceipt(txHash)
+            self._anvil.waitForReceipt(txHash)
             for txHash in txHashes
         ]
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import time
 from typing import Any, Optional
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
@@ -21,6 +22,21 @@ class AnvilClient:
 
     def getReceipt(self, txHash: str) -> Optional[dict[str, Any]]:
         return self._rpc("eth_getTransactionReceipt", [txHash])
+
+    def waitForReceipt(
+        self,
+        txHash: str,
+        attempts: int = 20,
+        delaySeconds: float = 0.1,
+    ) -> Optional[dict[str, Any]]:
+        for _ in range(attempts):
+            receipt = self.getReceipt(txHash)
+            if receipt is not None:
+                return receipt
+
+            time.sleep(delaySeconds)
+
+        return None
 
     def _rpc(self, method: str, params: list[Any]) -> Any:
         self._requestId += 1
