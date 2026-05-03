@@ -66,6 +66,7 @@ block-builder >"${LOG_FILE}" 2>&1 &
 
 PID="$!"
 echo "${PID}" >"${PID_FILE}"
+disown "${PID}" >/dev/null 2>&1 || true
 
 wait_for_health
 
