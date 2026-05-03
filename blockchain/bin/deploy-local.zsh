@@ -106,6 +106,9 @@ else
   echo "Starting local Anvil at ${RPC_URL}"
   anvil \
     --chain-id "${CHAIN_ID}" \
+    --hardfork "${HARD_FORK}" \
+    --block-base-fee-per-gas "${BASE_FEE_WEI}" \
+    --gas-limit "${GAS_LIMIT}" \
     --mnemonic "${MNEMONIC}" \
     --accounts "${ACCOUNTS}" \
     --balance "${BALANCE_ETH}" \
@@ -146,6 +149,9 @@ cat >"${ADDRESSES_FILE}" <<EOF
 {
   "chainId": ${CHAIN_ID},
   "rpcUrl": "${RPC_URL}",
+  "hardFork": "${HARD_FORK}",
+  "baseFeeWei": "${BASE_FEE_WEI}",
+  "gasLimit": "${GAS_LIMIT}",
   "automine": ${AUTOMINE},
   "deployer": "${DEPLOYER_ADDRESS}",
   "contracts": {
@@ -163,5 +169,8 @@ echo "TokenA symbol: ${TOKEN_A_SYMBOL}"
 echo "TokenA address: ${TOKEN_A_ADDRESS}"
 echo "TokenB symbol: ${TOKEN_B_SYMBOL}"
 echo "TokenB address: ${TOKEN_B_ADDRESS}"
+echo "Hard fork: ${HARD_FORK}"
+echo "Base fee wei: ${BASE_FEE_WEI}"
+echo "Gas limit: ${GAS_LIMIT}"
 echo "Automine: ${AUTOMINE}"
 echo "Saved deployment addresses to ${ADDRESSES_FILE}"

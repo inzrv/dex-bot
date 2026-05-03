@@ -111,6 +111,9 @@ Network settings:
 
 - `RPC_URL` - local JSON-RPC endpoint.
 - `CHAIN_ID` - local chain ID, currently `31337`.
+- `HARD_FORK` - Anvil EVM hardfork, currently pinned to `prague`.
+- `BASE_FEE_WEI` - initial EIP-1559 base fee, currently `1000000000`.
+- `GAS_LIMIT` - block gas limit, currently `30000000`.
 - `MNEMONIC` - deterministic Anvil mnemonic.
 - `ACCOUNTS` - number of generated local accounts.
 - `BALANCE_ETH` - starting ETH balance for each generated account.
