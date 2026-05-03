@@ -23,6 +23,11 @@ build/
 dist/
 *.egg-info/
 
+# Local service runtime files
+services/block-builder/runtime/*.log
+services/block-builder/runtime/*.pid
+!services/block-builder/runtime/.gitkeep
+
 # Foundry build artifacts
 blockchain/cache/
 blockchain/out/

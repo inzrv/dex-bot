@@ -28,6 +28,29 @@ source .venv/bin/activate
 uvicorn block_builder.app:create_app --factory --reload --host 127.0.0.1 --port 9001
 ```
 
+## Run With Local Scripts
+
+From the repository root:
+
+```shell
+services/block-builder/bin/start-local.zsh
+```
+
+The script creates `.venv` if needed, installs the package if needed, starts the service in the background, writes a PID file, writes a log file, and checks `/health`.
+
+Runtime files:
+
+```text
+services/block-builder/runtime/block-builder.local.pid
+services/block-builder/runtime/block-builder.local.log
+```
+
+Stop and clean the local service:
+
+```shell
+services/block-builder/bin/cleanup-local.zsh
+```
+
 ## Run Via Entrypoint
 
 After `pip install -e .`, this also works:
