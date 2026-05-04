@@ -50,7 +50,7 @@ services/block-builder/bin/cleanup-local.zsh
 Run the smoke scenario:
 
 ```shell
-scenarios/token-transfer.zsh
+scenarios/token-transfer/run.zsh
 ```
 
 The scenario starts or reuses the local chain and block builder, sends a `TokenA` transfer through the public mempool, mines it through a private bundle, and checks the final balance.

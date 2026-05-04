@@ -5,4 +5,4 @@ set -euo pipefail
 # mostly JSON-RPC, HTTP, and structured validation.
 SCRIPT_DIR="${0:A:h}"
 
-python3 "${SCRIPT_DIR}/token-transfer.py" "$@"
+python3 "${SCRIPT_DIR}/run.py" "$@"
