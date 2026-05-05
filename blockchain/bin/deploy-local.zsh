@@ -28,10 +28,21 @@ wait_for_rpc() {
   return 1
 }
 
+# Put Anvil into normal mining mode before deployment broadcasts. Previous
+# scenarios leave automine disabled so the block builder can control mining.
+prepare_for_deploy() {
+  echo "Enabling automine for contract deployment"
+  cast rpc evm_setAutomine true --rpc-url "${RPC_URL}" >/dev/null
+
+  # Mine once to clear any pending transaction left by an interrupted redeploy.
+  cast rpc evm_mine --rpc-url "${RPC_URL}" >/dev/null
+}
+
 # Deploy one contract and return only its deployed address on the last line.
 deploy_contract() {
   local contract_id="$1"
   local label="$2"
+  shift 2
   local output address
 
   echo "Deploying ${label}"
@@ -39,7 +50,7 @@ deploy_contract() {
     forge create --broadcast "${contract_id}" \
       --rpc-url "${RPC_URL}" \
       --private-key "${DEPLOYER_PRIVATE_KEY}" \
-      --constructor-args "${DEPLOYER_ADDRESS}"
+      --constructor-args "$@"
   )"
 
   echo "${output}"
@@ -72,7 +83,7 @@ confirm_redeploy() {
   local reply
 
   echo "A local chain is already running at ${RPC_URL}."
-  echo "Redeploying will create new TokenA/TokenB contracts and overwrite ${ADDRESSES_FILE}."
+  echo "Redeploying will create new TokenA/TokenB and Pool1/Pool2 contracts and overwrite ${ADDRESSES_FILE}."
   printf "Continue? [y/N] "
   read -r reply
 
@@ -124,21 +135,35 @@ fi
 # Make sure the chain is reachable before compiling and broadcasting deploys.
 BLOCK_NUMBER="$(cast block-number --rpc-url "${RPC_URL}")"
 echo "Local chain block number: ${BLOCK_NUMBER}"
+prepare_for_deploy
 
 echo "Compiling contracts"
 forge build
 
 # Deploy both sandbox tokens. The deployer is also the token minter for now.
-TOKEN_A_ADDRESS="$(deploy_contract "src/tokens/TokenA.sol:TokenA" "TokenA" | tail -n 1)"
-TOKEN_B_ADDRESS="$(deploy_contract "src/tokens/TokenB.sol:TokenB" "TokenB" | tail -n 1)"
+TOKEN_A_ADDRESS="$(deploy_contract "src/tokens/TokenA.sol:TokenA" "TokenA" "${DEPLOYER_ADDRESS}" | tail -n 1)"
+TOKEN_B_ADDRESS="$(deploy_contract "src/tokens/TokenB.sol:TokenB" "TokenB" "${DEPLOYER_ADDRESS}" | tail -n 1)"
 
-# Read a simple on-chain value from each token to prove the deployments work.
+# Deploy two independent AMM pools over the same token pair.
+POOL_1_ADDRESS="$(deploy_contract "src/dexes/Pool1.sol:Pool1" "Pool1" "${TOKEN_A_ADDRESS}" "${TOKEN_B_ADDRESS}" | tail -n 1)"
+POOL_2_ADDRESS="$(deploy_contract "src/dexes/Pool2.sol:Pool2" "Pool2" "${TOKEN_A_ADDRESS}" "${TOKEN_B_ADDRESS}" | tail -n 1)"
+
+# Read simple on-chain values to prove the deployments work.
 TOKEN_A_SYMBOL="$(cast call "${TOKEN_A_ADDRESS}" "symbol()(string)" --rpc-url "${RPC_URL}")"
 TOKEN_B_SYMBOL="$(cast call "${TOKEN_B_ADDRESS}" "symbol()(string)" --rpc-url "${RPC_URL}")"
 TOKEN_A_SYMBOL="${TOKEN_A_SYMBOL#\"}"
 TOKEN_A_SYMBOL="${TOKEN_A_SYMBOL%\"}"
 TOKEN_B_SYMBOL="${TOKEN_B_SYMBOL#\"}"
 TOKEN_B_SYMBOL="${TOKEN_B_SYMBOL%\"}"
+
+POOL_1_TOKEN_A="$(cast call "${POOL_1_ADDRESS}" "tokenA()(address)" --rpc-url "${RPC_URL}")"
+POOL_1_TOKEN_B="$(cast call "${POOL_1_ADDRESS}" "tokenB()(address)" --rpc-url "${RPC_URL}")"
+POOL_2_TOKEN_A="$(cast call "${POOL_2_ADDRESS}" "tokenA()(address)" --rpc-url "${RPC_URL}")"
+POOL_2_TOKEN_B="$(cast call "${POOL_2_ADDRESS}" "tokenB()(address)" --rpc-url "${RPC_URL}")"
+POOL_1_RESERVE_A="$(cast call "${POOL_1_ADDRESS}" "reserveA()(uint256)" --rpc-url "${RPC_URL}")"
+POOL_1_RESERVE_B="$(cast call "${POOL_1_ADDRESS}" "reserveB()(uint256)" --rpc-url "${RPC_URL}")"
+POOL_2_RESERVE_A="$(cast call "${POOL_2_ADDRESS}" "reserveA()(uint256)" --rpc-url "${RPC_URL}")"
+POOL_2_RESERVE_B="$(cast call "${POOL_2_ADDRESS}" "reserveB()(uint256)" --rpc-url "${RPC_URL}")"
 
 # Leave the deployed sandbox in builder-controlled mining mode.
 cast rpc evm_setAutomine false --rpc-url "${RPC_URL}" >/dev/null
@@ -156,11 +181,21 @@ cat >"${ADDRESSES_FILE}" <<EOF
   "deployer": "${DEPLOYER_ADDRESS}",
   "contracts": {
     "tokenA": "${TOKEN_A_ADDRESS}",
-    "tokenB": "${TOKEN_B_ADDRESS}"
+    "tokenB": "${TOKEN_B_ADDRESS}",
+    "pool1": "${POOL_1_ADDRESS}",
+    "pool2": "${POOL_2_ADDRESS}"
   },
   "checks": {
     "tokenASymbol": "${TOKEN_A_SYMBOL}",
-    "tokenBSymbol": "${TOKEN_B_SYMBOL}"
+    "tokenBSymbol": "${TOKEN_B_SYMBOL}",
+    "pool1TokenA": "${POOL_1_TOKEN_A}",
+    "pool1TokenB": "${POOL_1_TOKEN_B}",
+    "pool1ReserveA": "${POOL_1_RESERVE_A}",
+    "pool1ReserveB": "${POOL_1_RESERVE_B}",
+    "pool2TokenA": "${POOL_2_TOKEN_A}",
+    "pool2TokenB": "${POOL_2_TOKEN_B}",
+    "pool2ReserveA": "${POOL_2_RESERVE_A}",
+    "pool2ReserveB": "${POOL_2_RESERVE_B}"
   }
 }
 EOF
@@ -169,6 +204,16 @@ echo "TokenA symbol: ${TOKEN_A_SYMBOL}"
 echo "TokenA address: ${TOKEN_A_ADDRESS}"
 echo "TokenB symbol: ${TOKEN_B_SYMBOL}"
 echo "TokenB address: ${TOKEN_B_ADDRESS}"
+echo "Pool1 address: ${POOL_1_ADDRESS}"
+echo "Pool1 tokenA: ${POOL_1_TOKEN_A}"
+echo "Pool1 tokenB: ${POOL_1_TOKEN_B}"
+echo "Pool1 reserveA: ${POOL_1_RESERVE_A}"
+echo "Pool1 reserveB: ${POOL_1_RESERVE_B}"
+echo "Pool2 address: ${POOL_2_ADDRESS}"
+echo "Pool2 tokenA: ${POOL_2_TOKEN_A}"
+echo "Pool2 tokenB: ${POOL_2_TOKEN_B}"
+echo "Pool2 reserveA: ${POOL_2_RESERVE_A}"
+echo "Pool2 reserveB: ${POOL_2_RESERVE_B}"
 echo "Hard fork: ${HARD_FORK}"
 echo "Base fee wei: ${BASE_FEE_WEI}"
 echo "Gas limit: ${GAS_LIMIT}"
