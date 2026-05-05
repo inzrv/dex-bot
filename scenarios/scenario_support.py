@@ -36,6 +36,30 @@ def ensure_deployment() -> dict[str, Any]:
     return deployment
 
 
+# Reads a named local role from deployment metadata or the legacy env file.
+def deployment_role(deployment: dict[str, Any], name: str) -> dict[str, str]:
+    roles = deployment.get("roles")
+    if isinstance(roles, dict):
+        role = roles.get(name)
+        if isinstance(role, dict):
+            return {
+                key: value
+                for key, value in role.items()
+                if isinstance(key, str) and isinstance(value, str)
+            }
+
+    env = read_env_file(ENV_FILE)
+    prefix = name.upper()
+    role = {
+        "address": env.get(f"{prefix}_ADDRESS", ""),
+        "privateKey": env.get(f"{prefix}_PRIVATE_KEY", ""),
+    }
+    if role["address"] != "" or role["privateKey"] != "":
+        return role
+
+    raise ScenarioError(f"deployment role '{name}' not found")
+
+
 # Starts the local block builder and waits until its health endpoint responds.
 def start_block_builder() -> None:
     run([str(SERVICE_DIR / "bin" / "start-local.zsh")], cwd=REPO_ROOT)
@@ -68,6 +92,161 @@ def token_balance(rpc_url: str, token: str, account: str) -> int:
         ],
         cwd=BLOCKCHAIN_DIR,
     )
+
+
+# Reads Pool reserveA/reserveB values from the local chain.
+def pool_reserves(rpc_url: str, pool: str) -> tuple[int, int]:
+    reserve_a = cast_int(
+        ["cast", "call", pool, "reserveA()(uint256)", "--rpc-url", rpc_url],
+        cwd=BLOCKCHAIN_DIR,
+    )
+    reserve_b = cast_int(
+        ["cast", "call", pool, "reserveB()(uint256)", "--rpc-url", rpc_url],
+        cwd=BLOCKCHAIN_DIR,
+    )
+    return reserve_a, reserve_b
+
+
+# Reads the current transaction nonce for an account.
+def account_nonce(rpc_url: str, account: str) -> int:
+    return cast_int(["cast", "nonce", account, "--rpc-url", rpc_url], cwd=BLOCKCHAIN_DIR)
+
+
+# Encodes contract call calldata with cast calldata.
+def contract_calldata(signature: str, *args: str) -> str:
+    return run(
+        [
+            "cast",
+            "calldata",
+            signature,
+            *args,
+        ],
+        cwd=BLOCKCHAIN_DIR,
+    ).stdout.strip()
+
+
+# Quotes Pool1-style TokenA to TokenB output for an exact input amount.
+def quote_amount_out_a_for_b(rpc_url: str, pool: str, amount_in: int) -> int:
+    return cast_int(
+        [
+            "cast",
+            "call",
+            pool,
+            "getAmountOutAForB(uint256)(uint256)",
+            str(amount_in),
+            "--rpc-url",
+            rpc_url,
+        ],
+        cwd=BLOCKCHAIN_DIR,
+    )
+
+
+# Seeds a pool with equal TokenA/TokenB liquidity if it has no reserves.
+def ensure_pool_liquidity(
+    rpc_url: str,
+    deployer_key: str,
+    deployer: str,
+    token_a: str,
+    token_b: str,
+    pool: str,
+    amount: int,
+) -> None:
+    reserve_a, reserve_b = pool_reserves(rpc_url, pool)
+    if reserve_a > 0 and reserve_b > 0:
+        print(f"Pool already seeded: reserveA={reserve_a}, reserveB={reserve_b}")
+        return
+
+    print_step("Seeding pool liquidity")
+    rpc(rpc_url, "evm_setAutomine", [True])
+    try:
+        mint_and_approve(
+            rpc_url,
+            deployer_key,
+            deployer_key,
+            deployer,
+            token_a,
+            pool,
+            amount,
+            manage_automine=False,
+        )
+        mint_and_approve(
+            rpc_url,
+            deployer_key,
+            deployer_key,
+            deployer,
+            token_b,
+            pool,
+            amount,
+            manage_automine=False,
+        )
+        send_contract_transaction(
+            rpc_url,
+            deployer_key,
+            pool,
+            "seedLiquidity(uint256,uint256)",
+            str(amount),
+            str(amount),
+        )
+    finally:
+        rpc(rpc_url, "evm_setAutomine", [False])
+
+
+# Mints a token to an owner and approves a spender for that amount.
+def mint_and_approve(
+    rpc_url: str,
+    minter_key: str,
+    owner_key: str,
+    owner: str,
+    token: str,
+    spender: str,
+    amount: int,
+    manage_automine: bool = True,
+) -> None:
+    if manage_automine:
+        rpc(rpc_url, "evm_setAutomine", [True])
+    try:
+        send_contract_transaction(
+            rpc_url,
+            minter_key,
+            token,
+            "mint(address,uint256)",
+            owner,
+            str(amount),
+        )
+        send_contract_transaction(
+            rpc_url,
+            owner_key,
+            token,
+            "approve(address,uint256)",
+            spender,
+            str(amount),
+        )
+    finally:
+        if manage_automine:
+            rpc(rpc_url, "evm_setAutomine", [False])
+
+
+# Builds an EIP-1559 transaction payload for the block builder public mempool.
+def public_transaction_payload(
+    chain_id: int,
+    nonce: int,
+    sender: str,
+    to: str,
+    calldata: str,
+    gas: int = 300_000,
+) -> dict[str, str]:
+    return {
+        "type": "0x2",
+        "chainId": hex(chain_id),
+        "nonce": hex(nonce),
+        "from": sender,
+        "to": to,
+        "value": "0x0",
+        "gas": hex(gas),
+        "maxFeePerGas": hex(2_000_000_000),
+        "maxPriorityFeePerGas": hex(1),
+        "input": calldata,
+    }
 
 
 # Checks whether a JSON-RPC endpoint is reachable.
@@ -133,6 +312,30 @@ def cast_int(command: list[str], cwd: Path) -> int:
     output = run(command, cwd=cwd).stdout.strip()
     value = output.split()[0]
     return int(value, 0)
+
+
+# Sends a signed transaction to a contract with cast send.
+def send_contract_transaction(
+    rpc_url: str,
+    private_key: str,
+    contract: str,
+    signature: str,
+    *args: str,
+) -> None:
+    run(
+        [
+            "cast",
+            "send",
+            contract,
+            signature,
+            *args,
+            "--private-key",
+            private_key,
+            "--rpc-url",
+            rpc_url,
+        ],
+        cwd=BLOCKCHAIN_DIR,
+    )
 
 
 # Runs a subprocess and raises ScenarioError with useful command output.

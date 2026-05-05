@@ -179,6 +179,23 @@ cat >"${ADDRESSES_FILE}" <<EOF
   "gasLimit": "${GAS_LIMIT}",
   "automine": ${AUTOMINE},
   "deployer": "${DEPLOYER_ADDRESS}",
+  "roles": {
+    "deployer": {
+      "address": "${DEPLOYER_ADDRESS}",
+      "privateKey": "${DEPLOYER_PRIVATE_KEY}"
+    },
+    "victim": {
+      "address": "${VICTIM_ADDRESS}",
+      "privateKey": "${VICTIM_PRIVATE_KEY}"
+    },
+    "bot": {
+      "address": "${BOT_ADDRESS}",
+      "privateKey": "${BOT_PRIVATE_KEY}"
+    },
+    "treasury": {
+      "address": "${TREASURY_ADDRESS}"
+    }
+  },
   "contracts": {
     "tokenA": "${TOKEN_A_ADDRESS}",
     "tokenB": "${TOKEN_B_ADDRESS}",

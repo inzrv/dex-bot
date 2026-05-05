@@ -7,15 +7,14 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from scenario_support import (  # noqa: E402
-    BLOCKCHAIN_DIR,
-    ENV_FILE,
     ScenarioError,
-    cast_int,
+    deployment_role,
     ensure_deployment,
+    mint_and_approve,
+    pool_reserves,
     print_step,
-    read_env_file,
     rpc,
-    run,
+    send_contract_transaction,
 )
 
 TOKEN_DECIMALS = 10**18
@@ -23,8 +22,6 @@ POOL_TOKEN_AMOUNT = 100_000 * TOKEN_DECIMALS
 
 
 def main() -> int:
-    env = read_env_file(ENV_FILE)
-
     print_step("Preparing local chain")
     deployment = ensure_deployment()
     rpc_url = deployment["rpcUrl"]
@@ -33,7 +30,11 @@ def main() -> int:
     token_b = contracts["tokenB"]
     pool1 = contracts["pool1"]
     pool2 = contracts["pool2"]
-    deployer_key = env["DEPLOYER_PRIVATE_KEY"]
+    deployer_role = deployment_role(deployment, "deployer")
+    deployer = deployer_role["address"]
+    deployer_key = deployer_role["privateKey"]
+
+    print(f"Deployer address: {deployer}")
 
     pools = [
         ("Pool1", pool1),
@@ -45,36 +46,35 @@ def main() -> int:
         for label, pool in pools
     }
 
-    print_step("Minting pool seed tokens to the deployer")
+    print_step("Minting pool seed tokens and approving pools")
     rpc(rpc_url, "evm_setAutomine", [True])
     try:
-        total_amount = POOL_TOKEN_AMOUNT * len(pools)
-        send(
-            rpc_url,
-            deployer_key,
-            token_a,
-            "mint(address,uint256)",
-            deployment["deployer"],
-            str(total_amount),
-        )
-        send(
-            rpc_url,
-            deployer_key,
-            token_b,
-            "mint(address,uint256)",
-            deployment["deployer"],
-            str(total_amount),
-        )
-
-        print_step("Approving pools")
         for label, pool in pools:
-            send(rpc_url, deployer_key, token_a, "approve(address,uint256)", pool, str(POOL_TOKEN_AMOUNT))
-            send(rpc_url, deployer_key, token_b, "approve(address,uint256)", pool, str(POOL_TOKEN_AMOUNT))
+            mint_and_approve(
+                rpc_url,
+                deployer_key,
+                deployer_key,
+                deployer,
+                token_a,
+                pool,
+                POOL_TOKEN_AMOUNT,
+                manage_automine=False,
+            )
+            mint_and_approve(
+                rpc_url,
+                deployer_key,
+                deployer_key,
+                deployer,
+                token_b,
+                pool,
+                POOL_TOKEN_AMOUNT,
+                manage_automine=False,
+            )
             print(f"{label} approved for {format_token_amount(POOL_TOKEN_AMOUNT)} TokenA and TokenB")
 
         print_step("Seeding pool liquidity")
         for label, pool in pools:
-            send(
+            send_contract_transaction(
                 rpc_url,
                 deployer_key,
                 pool,
@@ -106,41 +106,6 @@ def main() -> int:
     print_step("Scenario complete")
     print("Both pools received 100,000 TokenA and 100,000 TokenB.")
     return 0
-
-
-def send(
-    rpc_url: str,
-    private_key: str,
-    contract: str,
-    signature: str,
-    *args: str,
-) -> None:
-    run(
-        [
-            "cast",
-            "send",
-            contract,
-            signature,
-            *args,
-            "--private-key",
-            private_key,
-            "--rpc-url",
-            rpc_url,
-        ],
-        cwd=BLOCKCHAIN_DIR,
-    )
-
-
-def pool_reserves(rpc_url: str, pool: str) -> tuple[int, int]:
-    reserve_a = cast_int(
-        ["cast", "call", pool, "reserveA()(uint256)", "--rpc-url", rpc_url],
-        cwd=BLOCKCHAIN_DIR,
-    )
-    reserve_b = cast_int(
-        ["cast", "call", pool, "reserveB()(uint256)", "--rpc-url", rpc_url],
-        cwd=BLOCKCHAIN_DIR,
-    )
-    return reserve_a, reserve_b
 
 
 def format_token_amount(amount: int) -> str:

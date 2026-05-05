@@ -36,7 +36,7 @@ This creates a ready local blockchain environment:
 4. Deploys `TokenA` and `TokenB`.
 5. Deploys `Pool1` and `Pool2` over the `TokenA` / `TokenB` pair.
 6. Reads token symbols, pool token addresses, and initial pool reserves.
-7. Saves deployment output to `blockchain/deployments/local.json`.
+7. Saves deployment output and local role addresses/keys to `blockchain/deployments/local.json`.
 
 Example output file:
 
@@ -45,6 +45,23 @@ Example output file:
   "chainId": 31337,
   "rpcUrl": "http://127.0.0.1:8545",
   "deployer": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+  "roles": {
+    "deployer": {
+      "address": "0xf39f...",
+      "privateKey": "0xac09..."
+    },
+    "victim": {
+      "address": "0x7099...",
+      "privateKey": "0x59c6..."
+    },
+    "bot": {
+      "address": "0x3c44...",
+      "privateKey": "0x5de4..."
+    },
+    "treasury": {
+      "address": "0x90f7..."
+    }
+  },
   "contracts": {
     "tokenA": "0x...",
     "tokenB": "0x...",

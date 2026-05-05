@@ -8,15 +8,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from scenario_support import (  # noqa: E402
     BLOCKCHAIN_DIR,
-    ENV_FILE,
     ScenarioError,
     builder_request,
     cast_int,
+    deployment_role,
     ensure_deployment,
     print_step,
-    read_env_file,
     rpc,
     run,
+    send_contract_transaction,
     start_block_builder,
     token_balance,
 )
@@ -26,16 +26,19 @@ MINT_AMOUNT = 100 * TRANSFER_AMOUNT
 
 
 def main() -> int:
-    env = read_env_file(ENV_FILE)
-
     print_step("Preparing local chain")
     deployment = ensure_deployment()
     rpc_url = deployment["rpcUrl"]
     chain_id = int(deployment["chainId"])
     token_a = deployment["contracts"]["tokenA"]
-    deployer = deployment["deployer"]
-    recipient = env["VICTIM_ADDRESS"]
-    deployer_key = env["DEPLOYER_PRIVATE_KEY"]
+    deployer_role = deployment_role(deployment, "deployer")
+    victim_role = deployment_role(deployment, "victim")
+    deployer = deployer_role["address"]
+    recipient = victim_role["address"]
+    deployer_key = deployer_role["privateKey"]
+
+    print(f"Deployer address: {deployer}")
+    print(f"Victim address:   {recipient}")
 
     print_step("Preparing local block builder")
     start_block_builder()
@@ -43,20 +46,13 @@ def main() -> int:
     print_step("Minting TokenA for the sender")
     rpc(rpc_url, "evm_setAutomine", [True])
     try:
-        run(
-            [
-                "cast",
-                "send",
-                token_a,
-                "mint(address,uint256)",
-                deployer,
-                str(MINT_AMOUNT),
-                "--private-key",
-                deployer_key,
-                "--rpc-url",
-                rpc_url,
-            ],
-            cwd=BLOCKCHAIN_DIR,
+        send_contract_transaction(
+            rpc_url,
+            deployer_key,
+            token_a,
+            "mint(address,uint256)",
+            deployer,
+            str(MINT_AMOUNT),
         )
     finally:
         rpc(rpc_url, "evm_setAutomine", [False])
