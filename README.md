@@ -55,6 +55,24 @@ scenarios/token-transfer/run.zsh
 
 The scenario starts or reuses the local chain and block builder, sends a `TokenA` transfer through the public mempool, mines it through a private bundle, and checks the final balance.
 
+Seed both AMM pools:
+
+```shell
+scenarios/seed-pools/run.zsh
+```
+
+Run a successful victim swap through the public mempool:
+
+```shell
+scenarios/victim-swap/run.zsh
+```
+
+Run a victim swap that should revert on slippage:
+
+```shell
+scenarios/victim-swap-revert/run.zsh
+```
+
 ## More Detail
 
 - `blockchain/README.md` - local chain, contracts, deployment output, and
