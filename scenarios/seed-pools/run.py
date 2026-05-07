@@ -10,6 +10,7 @@ from scenario_support import (  # noqa: E402
     ScenarioError,
     deployment_role,
     ensure_deployment,
+    format_token_amount,
     mint_and_approve,
     pool_reserves,
     print_step,
@@ -106,10 +107,6 @@ def main() -> int:
     print_step("Scenario complete")
     print("Both pools received 100,000 TokenA and 100,000 TokenB.")
     return 0
-
-
-def format_token_amount(amount: int) -> str:
-    return str(amount // TOKEN_DECIMALS)
 
 
 if __name__ == "__main__":

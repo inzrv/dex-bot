@@ -78,6 +78,12 @@ Run a victim swap that should revert on slippage:
 scenarios/victim-swap-revert/run.zsh
 ```
 
+Run a victim swap plus a simple backrun bundle:
+
+```shell
+scenarios/backrun/run.zsh
+```
+
 ## More Detail
 
 - `blockchain/README.md` - local chain, contracts, deployment output, and

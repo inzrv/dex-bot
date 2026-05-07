@@ -94,6 +94,18 @@ def token_balance(rpc_url: str, token: str, account: str) -> int:
     )
 
 
+# Formats an integer token amount using the default 18-decimal sandbox units.
+def format_token_amount(amount: int, decimals: int = 18) -> str:
+    scale = 10**decimals
+    whole = amount // scale
+    fraction = amount % scale
+    if fraction == 0:
+        return str(whole)
+
+    fraction_text = str(fraction).rjust(decimals, "0").rstrip("0")
+    return f"{whole}.{fraction_text}"
+
+
 # Reads Pool reserveA/reserveB values from the local chain.
 def pool_reserves(rpc_url: str, pool: str) -> tuple[int, int]:
     reserve_a = cast_int(
@@ -139,6 +151,33 @@ def quote_amount_out_a_for_b(rpc_url: str, pool: str, amount_in: int) -> int:
         ],
         cwd=BLOCKCHAIN_DIR,
     )
+
+
+# Quotes Pool1-style TokenB to TokenA output for an exact input amount.
+def quote_amount_out_b_for_a(rpc_url: str, pool: str, amount_in: int) -> int:
+    return cast_int(
+        [
+            "cast",
+            "call",
+            pool,
+            "getAmountOutBForA(uint256)(uint256)",
+            str(amount_in),
+            "--rpc-url",
+            rpc_url,
+        ],
+        cwd=BLOCKCHAIN_DIR,
+    )
+
+
+# Computes SandboxDex exact-input output with the local 0.3% fee.
+def sandbox_amount_out(amount_in: int, reserve_in: int, reserve_out: int) -> int:
+    if amount_in <= 0:
+        raise ScenarioError("amount_in must be positive")
+    if reserve_in <= 0 or reserve_out <= 0:
+        raise ScenarioError("reserves must be positive")
+
+    amount_in_with_fee = amount_in * 997
+    return (amount_in_with_fee * reserve_out) // ((reserve_in * 1000) + amount_in_with_fee)
 
 
 # Seeds a pool with equal TokenA/TokenB liquidity if it has no reserves.

@@ -13,6 +13,7 @@ from scenario_support import (  # noqa: E402
     cast_int,
     deployment_role,
     ensure_deployment,
+    format_token_amount,
     print_step,
     rpc,
     run,
@@ -59,8 +60,8 @@ def main() -> int:
 
     sender_before = token_balance(rpc_url, token_a, deployer)
     recipient_before = token_balance(rpc_url, token_a, recipient)
-    print(f"Sender TokenA before:    {sender_before}")
-    print(f"Recipient TokenA before: {recipient_before}")
+    print(f"Sender TokenA before:    {format_token_amount(sender_before)}")
+    print(f"Recipient TokenA before: {format_token_amount(recipient_before)}")
 
     print_step("Submitting transfer to the public mempool")
     nonce = cast_int(["cast", "nonce", deployer, "--rpc-url", rpc_url], cwd=BLOCKCHAIN_DIR)
@@ -112,8 +113,8 @@ def main() -> int:
 
     print_step("Checking final state")
     print(f"Final mempool status: {final_record['status']}")
-    print(f"Sender TokenA after:  {sender_after}")
-    print(f"Recipient after:      {recipient_after}")
+    print(f"Sender TokenA after:  {format_token_amount(sender_after)}")
+    print(f"Recipient after:      {format_token_amount(recipient_after)}")
 
     expected_recipient = recipient_before + TRANSFER_AMOUNT
     if bundle_result["status"] != "included":

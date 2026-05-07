@@ -14,6 +14,7 @@ from scenario_support import (  # noqa: E402
     deployment_role,
     ensure_deployment,
     ensure_pool_liquidity,
+    format_token_amount,
     mint_and_approve,
     print_step,
     public_transaction_payload,
@@ -70,8 +71,8 @@ def main() -> int:
 
     quoted_amount_out = quote_amount_out_a_for_b(rpc_url, pool, SWAP_AMOUNT_A)
     impossible_min_amount_out = quoted_amount_out + 1
-    print(f"Quoted TokenB out:      {quoted_amount_out}")
-    print(f"Impossible minimum out: {impossible_min_amount_out}")
+    print(f"Quoted TokenB out:      {format_token_amount(quoted_amount_out)}")
+    print(f"Impossible minimum out: {format_token_amount(impossible_min_amount_out)}")
 
     victim_a_before = token_balance(rpc_url, token_a, victim)
     victim_b_before = token_balance(rpc_url, token_b, victim)
@@ -113,10 +114,10 @@ def main() -> int:
 
     print_step("Checking reverted swap state")
     print(f"Final mempool status: {final_record['status']}")
-    print(f"Victim TokenA before: {victim_a_before}")
-    print(f"Victim TokenA after:  {victim_a_after}")
-    print(f"Victim TokenB before: {victim_b_before}")
-    print(f"Victim TokenB after:  {victim_b_after}")
+    print(f"Victim TokenA before: {format_token_amount(victim_a_before)}")
+    print(f"Victim TokenA after:  {format_token_amount(victim_a_after)}")
+    print(f"Victim TokenB before: {format_token_amount(victim_b_before)}")
+    print(f"Victim TokenB after:  {format_token_amount(victim_b_after)}")
 
     if bundle_result["status"] != "failed":
         raise ScenarioError(f"expected failed bundle, got {bundle_result['status']}")

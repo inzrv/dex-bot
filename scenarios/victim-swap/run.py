@@ -14,6 +14,7 @@ from scenario_support import (  # noqa: E402
     deployment_role,
     ensure_deployment,
     ensure_pool_liquidity,
+    format_token_amount,
     mint_and_approve,
     print_step,
     public_transaction_payload,
@@ -70,8 +71,8 @@ def main() -> int:
 
     quoted_amount_out = quote_amount_out_a_for_b(rpc_url, pool, SWAP_AMOUNT_A)
     min_amount_out = quoted_amount_out * 99 // 100
-    print(f"Quoted TokenB out:  {quoted_amount_out}")
-    print(f"Minimum TokenB out: {min_amount_out}")
+    print(f"Quoted TokenB out:  {format_token_amount(quoted_amount_out)}")
+    print(f"Minimum TokenB out: {format_token_amount(min_amount_out)}")
 
     victim_a_before = token_balance(rpc_url, token_a, victim)
     victim_b_before = token_balance(rpc_url, token_b, victim)
@@ -114,12 +115,12 @@ def main() -> int:
     received_b = victim_b_after - victim_b_before
 
     print_step("Checking victim balances")
-    print(f"Victim TokenA before: {victim_a_before}")
-    print(f"Victim TokenA after:  {victim_a_after}")
-    print(f"Victim TokenB before: {victim_b_before}")
-    print(f"Victim TokenB after:  {victim_b_after}")
-    print(f"Victim spent TokenA:  {spent_a}")
-    print(f"Victim got TokenB:    {received_b}")
+    print(f"Victim TokenA before: {format_token_amount(victim_a_before)}")
+    print(f"Victim TokenA after:  {format_token_amount(victim_a_after)}")
+    print(f"Victim TokenB before: {format_token_amount(victim_b_before)}")
+    print(f"Victim TokenB after:  {format_token_amount(victim_b_after)}")
+    print(f"Victim spent TokenA:  {format_token_amount(spent_a)}")
+    print(f"Victim got TokenB:    {format_token_amount(received_b)}")
 
     if bundle_result["status"] != "included":
         raise ScenarioError(f"expected included bundle, got {bundle_result['status']}")
