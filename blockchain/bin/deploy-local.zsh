@@ -83,7 +83,7 @@ confirm_redeploy() {
   local reply
 
   echo "A local chain is already running at ${RPC_URL}."
-  echo "Redeploying will create new TokenA/TokenB and Pool1/Pool2 contracts and overwrite ${ADDRESSES_FILE}."
+  echo "Redeploying will create new TokenA/TokenB, Pool1/Pool2, and SandboxBackrun contracts and overwrite ${ADDRESSES_FILE}."
   printf "Continue? [y/N] "
   read -r reply
 
@@ -148,6 +148,9 @@ TOKEN_B_ADDRESS="$(deploy_contract "src/tokens/TokenB.sol:TokenB" "TokenB" "${DE
 POOL_1_ADDRESS="$(deploy_contract "src/dexes/Pool1.sol:Pool1" "Pool1" "${TOKEN_A_ADDRESS}" "${TOKEN_B_ADDRESS}" | tail -n 1)"
 POOL_2_ADDRESS="$(deploy_contract "src/dexes/Pool2.sol:Pool2" "Pool2" "${TOKEN_A_ADDRESS}" "${TOKEN_B_ADDRESS}" | tail -n 1)"
 
+# Deploy the backrun executor with the dedicated bot role as its operator.
+BACKRUN_ADDRESS="$(deploy_contract "src/backrun/SandboxBackrun.sol:SandboxBackrun" "SandboxBackrun" "${BOT_ADDRESS}" | tail -n 1)"
+
 # Read simple on-chain values to prove the deployments work.
 TOKEN_A_SYMBOL="$(cast call "${TOKEN_A_ADDRESS}" "symbol()(string)" --rpc-url "${RPC_URL}")"
 TOKEN_B_SYMBOL="$(cast call "${TOKEN_B_ADDRESS}" "symbol()(string)" --rpc-url "${RPC_URL}")"
@@ -164,6 +167,8 @@ POOL_1_RESERVE_A="$(cast call "${POOL_1_ADDRESS}" "reserveA()(uint256)" --rpc-ur
 POOL_1_RESERVE_B="$(cast call "${POOL_1_ADDRESS}" "reserveB()(uint256)" --rpc-url "${RPC_URL}")"
 POOL_2_RESERVE_A="$(cast call "${POOL_2_ADDRESS}" "reserveA()(uint256)" --rpc-url "${RPC_URL}")"
 POOL_2_RESERVE_B="$(cast call "${POOL_2_ADDRESS}" "reserveB()(uint256)" --rpc-url "${RPC_URL}")"
+
+BACKRUN_OPERATOR="$(cast call "${BACKRUN_ADDRESS}" "operator()(address)" --rpc-url "${RPC_URL}")"
 
 # Leave the deployed sandbox in builder-controlled mining mode.
 cast rpc evm_setAutomine false --rpc-url "${RPC_URL}" >/dev/null
@@ -200,7 +205,8 @@ cat >"${ADDRESSES_FILE}" <<EOF
     "tokenA": "${TOKEN_A_ADDRESS}",
     "tokenB": "${TOKEN_B_ADDRESS}",
     "pool1": "${POOL_1_ADDRESS}",
-    "pool2": "${POOL_2_ADDRESS}"
+    "pool2": "${POOL_2_ADDRESS}",
+    "backrun": "${BACKRUN_ADDRESS}"
   },
   "checks": {
     "tokenASymbol": "${TOKEN_A_SYMBOL}",
@@ -212,7 +218,8 @@ cat >"${ADDRESSES_FILE}" <<EOF
     "pool2TokenA": "${POOL_2_TOKEN_A}",
     "pool2TokenB": "${POOL_2_TOKEN_B}",
     "pool2ReserveA": "${POOL_2_RESERVE_A}",
-    "pool2ReserveB": "${POOL_2_RESERVE_B}"
+    "pool2ReserveB": "${POOL_2_RESERVE_B}",
+    "backrunOperator": "${BACKRUN_OPERATOR}"
   }
 }
 EOF
@@ -231,6 +238,8 @@ echo "Pool2 tokenA: ${POOL_2_TOKEN_A}"
 echo "Pool2 tokenB: ${POOL_2_TOKEN_B}"
 echo "Pool2 reserveA: ${POOL_2_RESERVE_A}"
 echo "Pool2 reserveB: ${POOL_2_RESERVE_B}"
+echo "Backrun address: ${BACKRUN_ADDRESS}"
+echo "Backrun operator: ${BACKRUN_OPERATOR}"
 echo "Hard fork: ${HARD_FORK}"
 echo "Base fee wei: ${BASE_FEE_WEI}"
 echo "Gas limit: ${GAS_LIMIT}"

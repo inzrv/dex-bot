@@ -4,7 +4,12 @@ Local sandbox for building and testing a DEX bot workflow. The project is split 
 
 ## Modules
 
-- `blockchain/` - local EVM network, sandbox ERC-20 contracts, Foundry build and deployment scripts.
+- `blockchain/`
+  - local EVM network,
+  - ERC-20,
+  - AMM,
+  - backrun executor,
+  - Foundry deployment scripts.
 - `services/block-builder/` - Python block builder service with public mempool and private bundle APIs.
 - `scenarios/` - integration scenarios that coordinate the chain, builder, and future bot-facing flows.
 

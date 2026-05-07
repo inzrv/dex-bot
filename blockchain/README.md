@@ -12,6 +12,7 @@ Current contents:
 - `src/tokens/` - minimal ERC-20 contracts used by the sandbox.
 - `src/dexes/` - sandbox AMM pool contracts used by swap and arbitrage
   scenarios.
+- `src/backrun/` - sandbox backrun executor contracts for bundle-driven arbitrage experiments.
 - `config/local.anvil.env` - local chain accounts, keys, RPC URL, and Anvil
   parameters.
 - `bin/deploy-local.zsh` - starts or reuses a local Anvil chain, builds contracts, deploys the sandbox tokens and pools, checks them, and writes deployment output.
@@ -35,8 +36,9 @@ This creates a ready local blockchain environment:
 3. Runs `forge build`.
 4. Deploys `TokenA` and `TokenB`.
 5. Deploys `Pool1` and `Pool2` over the `TokenA` / `TokenB` pair.
-6. Reads token symbols, pool token addresses, and initial pool reserves.
-7. Saves deployment output and local role addresses/keys to `blockchain/deployments/local.json`.
+6. Deploys `SandboxBackrun` with the local bot account as its operator.
+7. Reads token symbols, pool token addresses, initial pool reserves, and the backrun operator.
+8. Saves deployment output and local role addresses/keys to `blockchain/deployments/local.json`.
 
 Example output file:
 
@@ -66,7 +68,8 @@ Example output file:
     "tokenA": "0x...",
     "tokenB": "0x...",
     "pool1": "0x...",
-    "pool2": "0x..."
+    "pool2": "0x...",
+    "backrun": "0x..."
   },
   "checks": {
     "tokenASymbol": "TKA",
@@ -78,7 +81,8 @@ Example output file:
     "pool2TokenA": "0x...",
     "pool2TokenB": "0x...",
     "pool2ReserveA": "0",
-    "pool2ReserveB": "0"
+    "pool2ReserveB": "0",
+    "backrunOperator": "0x3c44..."
   }
 }
 ```
@@ -171,6 +175,10 @@ Current DEX contracts:
   reserves, 0.3% swap fee, bootstrap liquidity, and exact-input swaps.
 - `Pool1` - first sandbox pool instance for local scenarios.
 - `Pool2` - second sandbox pool instance for local scenarios and future arbitrage setups.
+
+Current backrun contracts:
+
+- `SandboxBackrun` - executes a simple `B -> A` swap in one pool followed by `A -> B` in another pool, then reverts if the realized `TokenB` profit is below a caller-provided minimum.
 
 The contracts avoid external dependencies for now, so the sandbox can compile
 without installing packages.
