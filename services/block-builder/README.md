@@ -1,8 +1,8 @@
-# Local Block Builder
+# Forest Gate
 
-Python service that models the local block-building layer for the sandbox. It
-keeps an in-memory public mempool, accepts private bundles, talks to Anvil, and
-exposes small chain gateway endpoints for the future bot.
+Forest Gate is the local block builder for DEX Knight. It keeps an in-memory
+public mempool, accepts private bundles, talks to Anvil, and exposes small chain
+gateway endpoints for the future bot.
 
 Detailed endpoint examples live in [`docs/endpoints.md`](docs/endpoints.md).
 

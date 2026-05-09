@@ -1,7 +1,8 @@
-# Blockchain Sandbox
+# Dark Forest
 
-This directory contains the EVM side of the project: local chain tooling,
-Solidity contracts, deployment scripts, and local deployment outputs.
+Dark Forest is the local EVM sandbox for DEX Knight. This directory contains
+the chain tooling, Solidity contracts, deployment scripts, and local deployment
+outputs.
 
 For now, it is intentionally small. The goal is to create a reproducible local
 environment where the future C++ bot can interact with contracts without using

@@ -1,17 +1,21 @@
-# DEX Bot
+![](./dex-knight.png)
 
-Local sandbox for building and testing a DEX bot workflow. The project is split into a local blockchain module, a block builder service, and root-level integration scenarios that exercise the pieces together.
+# DEX Knight
+
+DEX Knight is a DEX arbitrage bot project with a local execution environment
+for developing and testing the full workflow safely. The repository includes
+**Dark Forest**, a sandbox EVM network, **Forest Gate**, a local block builder,
+smart contracts, and integration scenarios that exercise victim swaps, bundles,
+simulations, and backruns.
 
 ## Modules
 
-- `blockchain/`
-  - local EVM network,
-  - ERC-20,
-  - AMM,
-  - backrun executor,
-  - Foundry deployment scripts.
-- `services/block-builder/` - Python block builder service with public mempool and private bundle APIs.
-- `scenarios/` - integration scenarios that coordinate the chain, builder, and future bot-facing flows.
+- `blockchain/` - **Dark Forest**: local EVM network, ERC-20 tokens, AMM
+  pools, backrun executor, and Foundry deployment scripts.
+- `services/block-builder/` - **Forest Gate**: local block builder service with
+  public mempool, private bundle, simulation, and chain gateway APIs.
+- `scenarios/` - integration scenarios that coordinate the chain and builder
+  while the arbitrage bot is being built.
 
 ## Stack
 
@@ -22,7 +26,7 @@ Local sandbox for building and testing a DEX bot workflow. The project is split 
 
 ## Local Commands
 
-### Blockchain
+### Dark Forest
 
 Start or redeploy the local blockchain sandbox:
 
@@ -36,7 +40,7 @@ Stop and clean the local blockchain sandbox:
 blockchain/bin/cleanup-local.zsh
 ```
 
-### Block Builder
+### Forest Gate
 
 Start the local block builder:
 
@@ -92,7 +96,7 @@ scenarios/bundle-simulation/run.zsh
 
 ## More Detail
 
-- `blockchain/README.md` - local chain, contracts, deployment output, and
+- `blockchain/README.md` - Dark Forest local chain, contracts, deployment output, and
   Foundry usage.
-- `services/block-builder/README.md` - builder setup, service runtime, and API
-  examples.
+- `services/block-builder/README.md` - Forest Gate setup, service runtime, and
+  API examples.
