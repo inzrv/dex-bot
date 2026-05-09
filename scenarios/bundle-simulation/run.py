@@ -3,27 +3,27 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from scenario_support import (  # noqa: E402
     ScenarioError,
-    account_nonce,
-    builder_request,
-    contract_calldata,
+    TOKEN_DECIMALS,
+    block_number,
+    chain_head,
+    chain_head_label,
     deployment_role,
     ensure_deployment,
     format_token_amount,
+    mine_bundle,
+    mint_token,
     print_step,
-    public_transaction_payload,
-    rpc,
-    send_contract_transaction,
+    simulate_bundle,
     start_block_builder,
     token_balance,
+    token_transfer_payload,
 )
 
-TOKEN_DECIMALS = 10**18
 MINT_AMOUNT = 3 * TOKEN_DECIMALS
 REAL_TRANSFER_AMOUNT = 1 * TOKEN_DECIMALS
 SIMULATED_TRANSFER_AMOUNT = 1 * TOKEN_DECIMALS
@@ -48,39 +48,24 @@ def main() -> int:
     start_block_builder()
 
     print_step("Minting TokenA for transfer checks")
-    rpc(rpc_url, "evm_setAutomine", [True])
-    try:
-        send_contract_transaction(
-            rpc_url,
-            deployer_key,
-            token_a,
-            "mint(address,uint256)",
-            deployer,
-            str(MINT_AMOUNT),
-        )
-    finally:
-        rpc(rpc_url, "evm_setAutomine", [False])
+    mint_token(rpc_url, deployer_key, token_a, deployer, MINT_AMOUNT)
 
     print_step("Mining a real transfer bundle")
     head_before_real = chain_head()
-    real_payload = transfer_payload(
+    real_payload = token_transfer_payload(
         rpc_url,
         chain_id,
         deployer,
-        victim,
         token_a,
+        victim,
         REAL_TRANSFER_AMOUNT,
     )
-    real_result = builder_request(
-        "POST",
-        "/private/bundle",
-        {"transactions": [real_payload]},
-    )
+    real_result = mine_bundle([real_payload])
     real_tx_result = real_result["transactions"][0]
     head_after_real = chain_head()
 
-    print(f"Head before real tx: {head_label(head_before_real)}")
-    print(f"Head after real tx:  {head_label(head_after_real)}")
+    print(f"Head before real tx: {chain_head_label(head_before_real)}")
+    print(f"Head after real tx:  {chain_head_label(head_after_real)}")
     print(f"Real bundle status:  {real_result['status']}")
     print(f"Real tx status:      {real_tx_result['status']}")
 
@@ -95,26 +80,22 @@ def main() -> int:
     deployer_before_sim = token_balance(rpc_url, token_a, deployer)
     victim_before_sim = token_balance(rpc_url, token_a, victim)
     head_before_sim = chain_head()
-    simulation_payload = transfer_payload(
+    simulation_payload = token_transfer_payload(
         rpc_url,
         chain_id,
         deployer,
-        victim,
         token_a,
+        victim,
         SIMULATED_TRANSFER_AMOUNT,
     )
-    simulation_result = builder_request(
-        "POST",
-        "/private/bundle/simulate",
-        {"transactions": [simulation_payload]},
-    )
+    simulation_result = simulate_bundle([simulation_payload])
     simulation_tx_result = simulation_result["transactions"][0]
     head_after_sim = chain_head()
     deployer_after_sim = token_balance(rpc_url, token_a, deployer)
     victim_after_sim = token_balance(rpc_url, token_a, victim)
 
-    print(f"Head before simulation: {head_label(head_before_sim)}")
-    print(f"Head after simulation:  {head_label(head_after_sim)}")
+    print(f"Head before simulation: {chain_head_label(head_before_sim)}")
+    print(f"Head after simulation:  {chain_head_label(head_after_sim)}")
     print(f"Simulation status:      {simulation_result['status']}")
     print(f"Simulation tx status:   {simulation_tx_result['status']}")
     print(f"Deployer TokenA before sim:    {format_token_amount(deployer_before_sim)}")
@@ -138,49 +119,6 @@ def main() -> int:
     print_step("Scenario complete")
     print("Bundle simulation returned receipts without changing block head or balances.")
     return 0
-
-
-def transfer_payload(
-    rpc_url: str,
-    chain_id: int,
-    sender: str,
-    recipient: str,
-    token: str,
-    amount: int,
-) -> dict[str, str]:
-    calldata = contract_calldata(
-        "transfer(address,uint256)",
-        recipient,
-        str(amount),
-    )
-    return public_transaction_payload(
-        chain_id=chain_id,
-        nonce=account_nonce(rpc_url, sender),
-        sender=sender,
-        to=token,
-        calldata=calldata,
-        gas=200_000,
-    )
-
-
-def chain_head() -> dict[str, Any]:
-    return builder_request("GET", "/chain/head")
-
-
-def block_number(head: dict[str, Any]) -> int:
-    block_number_hex = head.get("blockNumber")
-    if not isinstance(block_number_hex, str):
-        raise ScenarioError("chain head response does not contain blockNumber")
-
-    return int(block_number_hex, 16)
-
-
-def head_label(head: dict[str, Any]) -> str:
-    block_hash = head.get("blockHash")
-    if not isinstance(block_hash, str):
-        block_hash = "<missing>"
-
-    return f"{block_number(head)} ({block_hash})"
 
 
 if __name__ == "__main__":

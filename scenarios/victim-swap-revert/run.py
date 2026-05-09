@@ -8,22 +8,22 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from scenario_support import (  # noqa: E402
     ScenarioError,
-    account_nonce,
-    builder_request,
-    contract_calldata,
+    TOKEN_DECIMALS,
+    contract_transaction_payload,
     deployment_role,
     ensure_deployment,
     ensure_pool_liquidity,
     format_token_amount,
+    mine_bundle,
     mint_and_approve,
     print_step,
-    public_transaction_payload,
+    public_transaction,
     quote_amount_out_a_for_b,
+    submit_public_transaction,
     start_block_builder,
     token_balance,
 )
 
-TOKEN_DECIMALS = 10**18
 POOL_SEED_AMOUNT = 100_000 * TOKEN_DECIMALS
 SWAP_AMOUNT_A = 100 * TOKEN_DECIMALS
 
@@ -78,37 +78,28 @@ def main() -> int:
     victim_b_before = token_balance(rpc_url, token_b, victim)
 
     print_step("Submitting impossible victim swap to the public mempool")
-    calldata = contract_calldata(
-        "swapExactAForB(uint256,uint256)",
-        str(SWAP_AMOUNT_A),
-        str(impossible_min_amount_out),
-    )
-    mempool_record = builder_request(
-        "POST",
-        "/public/tx",
-        public_transaction_payload(
-            chain_id=chain_id,
-            nonce=account_nonce(rpc_url, victim),
-            sender=victim,
-            to=pool,
-            calldata=calldata,
-        ),
+    mempool_record = submit_public_transaction(
+        contract_transaction_payload(
+            rpc_url,
+            chain_id,
+            victim,
+            pool,
+            "swapExactAForB(uint256,uint256)",
+            str(SWAP_AMOUNT_A),
+            str(impossible_min_amount_out),
+        )
     )
     mempool_tx_id = mempool_record["mempoolTxId"]
     print(f"Mempool transaction: {mempool_tx_id}")
 
     print_step("Mining the impossible swap through the private bundle endpoint")
-    bundle_result = builder_request(
-        "POST",
-        "/private/bundle",
-        {"transactions": [{"mempoolTxId": mempool_tx_id}]},
-    )
+    bundle_result = mine_bundle([{"mempoolTxId": mempool_tx_id}])
     tx_result = bundle_result["transactions"][0]
     print(f"Bundle status:     {bundle_result['status']}")
     print(f"Swap tx status:    {tx_result['status']}")
     print(f"Chain transaction: {tx_result['chainTxHash']}")
 
-    final_record = builder_request("GET", f"/public/tx/{mempool_tx_id}")
+    final_record = public_transaction(mempool_tx_id)
     victim_a_after = token_balance(rpc_url, token_a, victim)
     victim_b_after = token_balance(rpc_url, token_b, victim)
 

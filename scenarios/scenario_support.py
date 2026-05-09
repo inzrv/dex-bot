@@ -18,6 +18,8 @@ DEPLOYMENT_FILE = BLOCKCHAIN_DIR / "deployments" / "local.json"
 ENV_FILE = BLOCKCHAIN_DIR / "config" / "local.anvil.env"
 
 BUILDER_URL = os.environ.get("BLOCK_BUILDER_URL", "http://127.0.0.1:9001")
+DEFAULT_TOKEN_DECIMALS = 18
+TOKEN_DECIMALS = 10**DEFAULT_TOKEN_DECIMALS
 
 
 # Ensures a local blockchain deployment exists and returns its metadata.
@@ -78,6 +80,29 @@ def wait_for_builder() -> None:
     raise ScenarioError(f"block builder did not become healthy at {BUILDER_URL}/health")
 
 
+# Reads the current chain head through the block builder.
+def chain_head() -> dict[str, Any]:
+    return builder_request("GET", "/chain/head")
+
+
+# Parses a block number from a chain head response.
+def block_number(head: dict[str, Any]) -> int:
+    block_number_hex = head.get("blockNumber")
+    if not isinstance(block_number_hex, str):
+        raise ScenarioError("chain head response does not contain blockNumber")
+
+    return int(block_number_hex, 16)
+
+
+# Formats a chain head response for scenario output.
+def chain_head_label(head: dict[str, Any]) -> str:
+    block_hash = head.get("blockHash")
+    if not isinstance(block_hash, str):
+        block_hash = "<missing>"
+
+    return f"{block_number(head)} ({block_hash})"
+
+
 # Reads an ERC-20 token balance from the local chain.
 def token_balance(rpc_url: str, token: str, account: str) -> int:
     return cast_int(
@@ -94,8 +119,8 @@ def token_balance(rpc_url: str, token: str, account: str) -> int:
     )
 
 
-# Formats an integer token amount using the default 18-decimal sandbox units.
-def format_token_amount(amount: int, decimals: int = 18) -> str:
+# Formats an integer token amount using the default sandbox decimals.
+def format_token_amount(amount: int, decimals: int = DEFAULT_TOKEN_DECIMALS) -> str:
     scale = 10**decimals
     whole = amount // scale
     fraction = amount % scale
@@ -196,7 +221,30 @@ def ensure_pool_liquidity(
         return
 
     print_step("Seeding pool liquidity")
-    rpc(rpc_url, "evm_setAutomine", [True])
+    add_pool_liquidity(
+        rpc_url,
+        deployer_key,
+        deployer,
+        token_a,
+        token_b,
+        pool,
+        amount,
+    )
+
+
+# Adds equal TokenA/TokenB liquidity to a pool.
+def add_pool_liquidity(
+    rpc_url: str,
+    deployer_key: str,
+    deployer: str,
+    token_a: str,
+    token_b: str,
+    pool: str,
+    amount: int,
+    manage_automine: bool = True,
+) -> None:
+    if manage_automine:
+        rpc(rpc_url, "evm_setAutomine", [True])
     try:
         mint_and_approve(
             rpc_url,
@@ -227,7 +275,66 @@ def ensure_pool_liquidity(
             str(amount),
         )
     finally:
-        rpc(rpc_url, "evm_setAutomine", [False])
+        if manage_automine:
+            rpc(rpc_url, "evm_setAutomine", [False])
+
+
+# Ensures a pool has exactly the expected equal TokenA/TokenB liquidity.
+def ensure_exact_pool_liquidity(
+    rpc_url: str,
+    deployer_key: str,
+    deployer: str,
+    token_a: str,
+    token_b: str,
+    pool: str,
+    amount: int,
+    label: str,
+) -> tuple[int, int]:
+    reserves = pool_reserves(rpc_url, pool)
+    if reserves == (0, 0):
+        ensure_pool_liquidity(
+            rpc_url,
+            deployer_key,
+            deployer,
+            token_a,
+            token_b,
+            pool,
+            amount,
+        )
+        reserves = pool_reserves(rpc_url, pool)
+
+    if reserves != (amount, amount):
+        raise ScenarioError(
+            f"{label} reserves must be exactly {amount}/{amount}; "
+            "clean and redeploy the local chain before rerunning this scenario"
+        )
+
+    return reserves
+
+
+# Mints a token to an account without approving a spender.
+def mint_token(
+    rpc_url: str,
+    minter_key: str,
+    token: str,
+    recipient: str,
+    amount: int,
+    manage_automine: bool = True,
+) -> None:
+    if manage_automine:
+        rpc(rpc_url, "evm_setAutomine", [True])
+    try:
+        send_contract_transaction(
+            rpc_url,
+            minter_key,
+            token,
+            "mint(address,uint256)",
+            recipient,
+            str(amount),
+        )
+    finally:
+        if manage_automine:
+            rpc(rpc_url, "evm_setAutomine", [False])
 
 
 # Mints a token to an owner and approves a spender for that amount.
@@ -288,6 +395,48 @@ def public_transaction_payload(
     }
 
 
+# Builds a block-builder transaction payload for a contract call.
+def contract_transaction_payload(
+    rpc_url: str,
+    chain_id: int,
+    sender: str,
+    to: str,
+    signature: str,
+    *args: str,
+    gas: int = 300_000,
+) -> dict[str, str]:
+    return public_transaction_payload(
+        chain_id=chain_id,
+        nonce=account_nonce(rpc_url, sender),
+        sender=sender,
+        to=to,
+        calldata=contract_calldata(signature, *args),
+        gas=gas,
+    )
+
+
+# Builds a block-builder transaction payload for an ERC-20 transfer.
+def token_transfer_payload(
+    rpc_url: str,
+    chain_id: int,
+    sender: str,
+    token: str,
+    recipient: str,
+    amount: int,
+    gas: int = 200_000,
+) -> dict[str, str]:
+    return contract_transaction_payload(
+        rpc_url,
+        chain_id,
+        sender,
+        token,
+        "transfer(address,uint256)",
+        recipient,
+        str(amount),
+        gas=gas,
+    )
+
+
 # Checks whether a JSON-RPC endpoint is reachable.
 def rpc_is_ready(rpc_url: str) -> bool:
     try:
@@ -344,6 +493,31 @@ def builder_request(method: str, path: str, body: Optional[dict[str, Any]] = Non
         raise ScenarioError(f"builder {method} {path} failed: {detail}") from error
     except URLError as error:
         raise ScenarioError(f"builder {method} {path} failed: {error}") from error
+
+
+# Adds a transaction to the block builder public mempool.
+def submit_public_transaction(tx_payload: dict[str, str]) -> dict[str, Any]:
+    return builder_request("POST", "/public/tx", tx_payload)
+
+
+# Reads one transaction record from the block builder public mempool.
+def public_transaction(mempool_tx_id: str) -> dict[str, Any]:
+    return builder_request("GET", f"/public/tx/{mempool_tx_id}")
+
+
+# Lists pending public mempool transaction records.
+def pending_public_transactions() -> dict[str, Any]:
+    return builder_request("GET", "/public/pending")
+
+
+# Mines a private bundle through the block builder.
+def mine_bundle(transactions: list[dict[str, Any]]) -> dict[str, Any]:
+    return builder_request("POST", "/private/bundle", {"transactions": transactions})
+
+
+# Simulates a private bundle through the block builder.
+def simulate_bundle(transactions: list[dict[str, Any]]) -> dict[str, Any]:
+    return builder_request("POST", "/private/bundle/simulate", {"transactions": transactions})
 
 
 # Runs a cast command and parses the first output token as an integer.

@@ -7,22 +7,23 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from scenario_support import (  # noqa: E402
-    BLOCKCHAIN_DIR,
     ScenarioError,
-    builder_request,
-    cast_int,
+    TOKEN_DECIMALS,
     deployment_role,
     ensure_deployment,
     format_token_amount,
+    mine_bundle,
+    mint_token,
+    pending_public_transactions,
     print_step,
-    rpc,
-    run,
-    send_contract_transaction,
+    public_transaction,
+    submit_public_transaction,
     start_block_builder,
     token_balance,
+    token_transfer_payload,
 )
 
-TRANSFER_AMOUNT = 10**18
+TRANSFER_AMOUNT = TOKEN_DECIMALS
 MINT_AMOUNT = 100 * TRANSFER_AMOUNT
 
 
@@ -45,18 +46,7 @@ def main() -> int:
     start_block_builder()
 
     print_step("Minting TokenA for the sender")
-    rpc(rpc_url, "evm_setAutomine", [True])
-    try:
-        send_contract_transaction(
-            rpc_url,
-            deployer_key,
-            token_a,
-            "mint(address,uint256)",
-            deployer,
-            str(MINT_AMOUNT),
-        )
-    finally:
-        rpc(rpc_url, "evm_setAutomine", [False])
+    mint_token(rpc_url, deployer_key, token_a, deployer, MINT_AMOUNT)
 
     sender_before = token_balance(rpc_url, token_a, deployer)
     recipient_before = token_balance(rpc_url, token_a, recipient)
@@ -64,50 +54,30 @@ def main() -> int:
     print(f"Recipient TokenA before: {format_token_amount(recipient_before)}")
 
     print_step("Submitting transfer to the public mempool")
-    nonce = cast_int(["cast", "nonce", deployer, "--rpc-url", rpc_url], cwd=BLOCKCHAIN_DIR)
-    calldata = run(
-        [
-            "cast",
-            "calldata",
-            "transfer(address,uint256)",
-            recipient,
-            str(TRANSFER_AMOUNT),
-        ],
-        cwd=BLOCKCHAIN_DIR,
-    ).stdout.strip()
-
-    tx_payload = {
-        "type": "0x2",
-        "chainId": hex(chain_id),
-        "nonce": hex(nonce),
-        "from": deployer,
-        "to": token_a,
-        "value": "0x0",
-        "gas": hex(200_000),
-        "maxFeePerGas": hex(2_000_000_000),
-        "maxPriorityFeePerGas": hex(1),
-        "input": calldata,
-    }
-    mempool_record = builder_request("POST", "/public/tx", tx_payload)
+    tx_payload = token_transfer_payload(
+        rpc_url,
+        chain_id,
+        deployer,
+        token_a,
+        recipient,
+        TRANSFER_AMOUNT,
+    )
+    mempool_record = submit_public_transaction(tx_payload)
     mempool_tx_id = mempool_record["mempoolTxId"]
     print(f"Mempool transaction: {mempool_tx_id}")
     print(f"Initial status:      {mempool_record['status']}")
 
-    pending = builder_request("GET", "/public/pending")
+    pending = pending_public_transactions()
     print(f"Pending transactions: {len(pending['transactions'])}")
 
     print_step("Mining the transfer through the private bundle endpoint")
-    bundle_result = builder_request(
-        "POST",
-        "/private/bundle",
-        {"transactions": [{"mempoolTxId": mempool_tx_id}]},
-    )
+    bundle_result = mine_bundle([{"mempoolTxId": mempool_tx_id}])
     tx_result = bundle_result["transactions"][0]
     print(f"Bundle status:       {bundle_result['status']}")
     print(f"Chain transaction:   {tx_result['chainTxHash']}")
     print(f"Block number:        {int(tx_result['blockNumber'], 16)}")
 
-    final_record = builder_request("GET", f"/public/tx/{mempool_tx_id}")
+    final_record = public_transaction(mempool_tx_id)
     sender_after = token_balance(rpc_url, token_a, deployer)
     recipient_after = token_balance(rpc_url, token_a, recipient)
 

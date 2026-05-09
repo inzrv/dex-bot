@@ -8,25 +8,23 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from scenario_support import (  # noqa: E402
     ScenarioError,
-    account_nonce,
-    builder_request,
-    contract_calldata,
+    TOKEN_DECIMALS,
+    contract_transaction_payload,
     deployment_role,
     ensure_deployment,
-    ensure_pool_liquidity,
+    ensure_exact_pool_liquidity,
     format_token_amount,
+    mine_bundle,
+    mint_token,
     mint_and_approve,
-    pool_reserves,
     print_step,
-    public_transaction_payload,
-    rpc,
+    public_transaction,
     sandbox_amount_out,
-    send_contract_transaction,
+    submit_public_transaction,
     start_block_builder,
     token_balance,
 )
 
-TOKEN_DECIMALS = 10**18
 POOL_SEED_AMOUNT = 1_000 * TOKEN_DECIMALS
 VICTIM_SWAP_AMOUNT_A = 100 * TOKEN_DECIMALS
 BACKRUN_AMOUNT_B = 42 * TOKEN_DECIMALS
@@ -66,22 +64,24 @@ def main() -> int:
     start_block_builder()
 
     print_step("Checking deterministic pool state")
-    pool1_reserves_before = ensure_seeded_pool(
+    pool1_reserves_before = ensure_exact_pool_liquidity(
         rpc_url,
         deployer_role["privateKey"],
         deployer,
         token_a,
         token_b,
         pool1,
+        POOL_SEED_AMOUNT,
         "Pool1",
     )
-    pool2_reserves_before = ensure_seeded_pool(
+    pool2_reserves_before = ensure_exact_pool_liquidity(
         rpc_url,
         deployer_role["privateKey"],
         deployer,
         token_a,
         token_b,
         pool2,
+        POOL_SEED_AMOUNT,
         "Pool2",
     )
 
@@ -102,18 +102,13 @@ def main() -> int:
         pool1,
         VICTIM_SWAP_AMOUNT_A,
     )
-    rpc(rpc_url, "evm_setAutomine", [True])
-    try:
-        send_contract_transaction(
-            rpc_url,
-            deployer_role["privateKey"],
-            token_b,
-            "mint(address,uint256)",
-            backrun,
-            str(BACKRUN_AMOUNT_B),
-        )
-    finally:
-        rpc(rpc_url, "evm_setAutomine", [False])
+    mint_token(
+        rpc_url,
+        deployer_role["privateKey"],
+        token_b,
+        backrun,
+        BACKRUN_AMOUNT_B,
+    )
 
     victim_a_before = token_balance(rpc_url, token_a, victim)
     victim_b_before = token_balance(rpc_url, token_b, victim)
@@ -160,51 +155,39 @@ def main() -> int:
     print(f"Backrun min TokenB profit:       {format_token_amount(MIN_PROFIT_B)}")
 
     print_step("Submitting victim swap to the public mempool")
-    victim_calldata = contract_calldata(
-        "swapExactAForB(uint256,uint256)",
-        str(VICTIM_SWAP_AMOUNT_A),
-        str(victim_min_amount_out_b),
-    )
-    victim_record = builder_request(
-        "POST",
-        "/public/tx",
-        public_transaction_payload(
-            chain_id=chain_id,
-            nonce=account_nonce(rpc_url, victim),
-            sender=victim,
-            to=pool1,
-            calldata=victim_calldata,
-        ),
+    victim_record = submit_public_transaction(
+        contract_transaction_payload(
+            rpc_url,
+            chain_id,
+            victim,
+            pool1,
+            "swapExactAForB(uint256,uint256)",
+            str(VICTIM_SWAP_AMOUNT_A),
+            str(victim_min_amount_out_b),
+        )
     )
     victim_mempool_tx_id = victim_record["mempoolTxId"]
     print(f"Victim mempool transaction: {victim_mempool_tx_id}")
 
     print_step("Submitting victim swap plus backrun bundle")
-    backrun_calldata = contract_calldata(
-        "executeBackrun(address,address,uint256,uint256,uint256,uint256)",
-        pool1,
-        pool2,
-        str(BACKRUN_AMOUNT_B),
-        str(backrun_min_amount_out_a),
-        str(backrun_min_amount_out_b),
-        str(MIN_PROFIT_B),
-    )
-    bundle_result = builder_request(
-        "POST",
-        "/private/bundle",
-        {
-            "transactions": [
-                {"mempoolTxId": victim_mempool_tx_id},
-                public_transaction_payload(
-                    chain_id=chain_id,
-                    nonce=account_nonce(rpc_url, bot),
-                    sender=bot,
-                    to=backrun,
-                    calldata=backrun_calldata,
-                    gas=700_000,
-                ),
-            ],
-        },
+    bundle_result = mine_bundle(
+        [
+            {"mempoolTxId": victim_mempool_tx_id},
+            contract_transaction_payload(
+                rpc_url,
+                chain_id,
+                bot,
+                backrun,
+                "executeBackrun(address,address,uint256,uint256,uint256,uint256)",
+                pool1,
+                pool2,
+                str(BACKRUN_AMOUNT_B),
+                str(backrun_min_amount_out_a),
+                str(backrun_min_amount_out_b),
+                str(MIN_PROFIT_B),
+                gas=700_000,
+            ),
+        ]
     )
 
     victim_tx_result = bundle_result["transactions"][0]
@@ -215,7 +198,7 @@ def main() -> int:
     print(f"Victim chain tx hash:  {victim_tx_result['chainTxHash']}")
     print(f"Backrun chain tx hash: {backrun_tx_result['chainTxHash']}")
 
-    final_victim_record = builder_request("GET", f"/public/tx/{victim_mempool_tx_id}")
+    final_victim_record = public_transaction(victim_mempool_tx_id)
     victim_a_after = token_balance(rpc_url, token_a, victim)
     victim_b_after = token_balance(rpc_url, token_b, victim)
     backrun_a_after = token_balance(rpc_url, token_a, backrun)
@@ -254,35 +237,6 @@ def main() -> int:
     return 0
 
 
-def ensure_seeded_pool(
-    rpc_url: str,
-    deployer_key: str,
-    deployer: str,
-    token_a: str,
-    token_b: str,
-    pool: str,
-    label: str,
-) -> tuple[int, int]:
-    reserves = pool_reserves(rpc_url, pool)
-    if reserves == (0, 0):
-        ensure_pool_liquidity(
-            rpc_url,
-            deployer_key,
-            deployer,
-            token_a,
-            token_b,
-            pool,
-            POOL_SEED_AMOUNT,
-        )
-        reserves = pool_reserves(rpc_url, pool)
-
-    if reserves != (POOL_SEED_AMOUNT, POOL_SEED_AMOUNT):
-        raise ScenarioError(
-            f"{label} reserves must be exactly {POOL_SEED_AMOUNT}/{POOL_SEED_AMOUNT}; "
-            "clean and redeploy the local chain before rerunning this scenario"
-        )
-
-    return reserves
 if __name__ == "__main__":
     try:
         raise SystemExit(main())
