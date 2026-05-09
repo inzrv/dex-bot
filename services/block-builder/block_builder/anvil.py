@@ -20,6 +20,14 @@ class AnvilClient:
     def mineBlock(self) -> None:
         self._rpc("evm_mine", [])
 
+    def snapshot(self) -> str:
+        return self._rpc("evm_snapshot", [])
+
+    def revert(self, snapshotId: str) -> None:
+        reverted = self._rpc("evm_revert", [snapshotId])
+        if reverted is not True:
+            raise RuntimeError(f"Anvil failed to revert snapshot {snapshotId}")
+
     def getLatestBlock(self) -> dict[str, Any]:
         return self._rpc("eth_getBlockByNumber", ["latest", False])
 

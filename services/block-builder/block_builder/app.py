@@ -82,6 +82,16 @@ def create_app() -> FastAPI:
             ]
         }
 
+    @app.post("/private/bundle/simulate")
+    async def simulate_private_bundle(payload: dict) -> dict:
+        try:
+            bundle = Bundle.fromJson(payload, mempool)
+            return bundleBuilder.simulateBundle(bundle)
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
+        except RuntimeError as error:
+            raise HTTPException(status_code=502, detail=str(error)) from error
+
     @app.post("/private/bundle")
     async def submit_private_bundle(payload: dict) -> dict:
         try:

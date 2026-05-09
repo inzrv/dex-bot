@@ -15,6 +15,7 @@ POST /chain/call
 POST /public/tx
 GET  /public/tx/{mempoolTxId}
 GET  /public/pending
+POST /private/bundle/simulate
 POST /private/bundle
 WS   /ws/pending
 ```
@@ -219,6 +220,70 @@ Expected response:
         "input": "0x"
       },
       "receipt": null
+    }
+  ]
+}
+```
+
+## `POST /private/bundle/simulate`
+
+Description: simulates a bundle with the same payload shape as
+`POST /private/bundle`. The builder executes the ordered transaction sequence on
+an Anvil snapshot, collects receipts, and reverts the snapshot afterwards. Public
+mempool records are not marked as mined during simulation.
+
+Example request:
+
+```shell
+curl -X POST http://127.0.0.1:9001/private/bundle/simulate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "transactions": [
+      {
+        "mempoolTxId": "mp-1234567890abcdef1234567890abcdef"
+      },
+      {
+        "type": "0x2",
+        "chainId": "0x7a69",
+        "nonce": "0x0",
+        "from": "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc",
+        "to": "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9",
+        "value": "0x0",
+        "gas": "0xaae60",
+        "maxFeePerGas": "0x77359400",
+        "maxPriorityFeePerGas": "0x1",
+        "input": "0x..."
+      }
+    ]
+  }'
+```
+
+Expected response:
+
+```json
+{
+  "status": "included",
+  "simulated": true,
+  "transactions": [
+    {
+      "mempoolTxId": "mp-1234567890abcdef1234567890abcdef",
+      "chainTxHash": "0xabc...",
+      "status": "included",
+      "blockNumber": "0x2",
+      "transactionIndex": "0x0",
+      "receipt": {
+        "status": "0x1"
+      }
+    },
+    {
+      "mempoolTxId": null,
+      "chainTxHash": "0xdef...",
+      "status": "included",
+      "blockNumber": "0x2",
+      "transactionIndex": "0x1",
+      "receipt": {
+        "status": "0x1"
+      }
     }
   ]
 }

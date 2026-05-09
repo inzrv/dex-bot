@@ -84,6 +84,12 @@ Run a victim swap plus a simple backrun bundle:
 scenarios/backrun/run.zsh
 ```
 
+Check that bundle simulation returns receipts without changing chain state:
+
+```shell
+scenarios/bundle-simulation/run.zsh
+```
+
 ## More Detail
 
 - `blockchain/README.md` - local chain, contracts, deployment output, and

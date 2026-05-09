@@ -56,7 +56,30 @@ class BundleBuilder:
     def __init__(self, anvil: AnvilClient) -> None:
         self._anvil = anvil
 
+    def simulateBundle(self, bundle: Bundle) -> dict[str, Any]:
+        snapshotId = self._anvil.snapshot()
+        try:
+            result = self._executeBundle(bundle)
+            result["simulated"] = True
+            return result
+        finally:
+            self._anvil.revert(snapshotId)
+
     def mineBundle(self, bundle: Bundle, mempool: Mempool) -> dict[str, Any]:
+        result = self._executeBundle(bundle)
+
+        for item, txResult in zip(bundle.items, result["transactions"]):
+            if item.mempoolTxId is not None:
+                mempool.markMined(
+                    mempoolTxId=item.mempoolTxId,
+                    chainTxHash=txResult["chainTxHash"],
+                    status=txResult["status"],
+                    receipt=txResult["receipt"],
+                )
+
+        return result
+
+    def _executeBundle(self, bundle: Bundle) -> dict[str, Any]:
         txHashes = [
             self._anvil.sendTransaction(item.transaction)
             for item in bundle.items
@@ -68,15 +91,6 @@ class BundleBuilder:
             self._anvil.waitForReceipt(txHash)
             for txHash in txHashes
         ]
-
-        for item, txHash, receipt in zip(bundle.items, txHashes, receipts):
-            if item.mempoolTxId is not None:
-                mempool.markMined(
-                    mempoolTxId=item.mempoolTxId,
-                    chainTxHash=txHash,
-                    status=_statusFromReceipt(receipt),
-                    receipt=receipt,
-                )
 
         return {
             "status": "included" if all(_statusFromReceipt(receipt) == "included" for receipt in receipts) else "failed",

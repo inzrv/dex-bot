@@ -36,4 +36,3 @@ services/block-builder/bin/cleanup-local.zsh
 - Bundle status storage.
 - Configurable Anvil RPC URL instead of a hardcoded node address.
 - Raw signed transactions and `eth_sendRawTransaction`.
-- Bundle simulation with snapshot/revert.
