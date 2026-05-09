@@ -23,6 +23,9 @@ class AnvilClient:
     def getLatestBlock(self) -> dict[str, Any]:
         return self._rpc("eth_getBlockByNumber", ["latest", False])
 
+    def call(self, callParams: dict[str, str], block: str) -> str:
+        return self._rpc("eth_call", [callParams, block])
+
     def getReceipt(self, txHash: str) -> Optional[dict[str, Any]]:
         return self._rpc("eth_getTransactionReceipt", [txHash])
 

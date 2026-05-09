@@ -1,3 +1,5 @@
+from typing import Any
+
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 
 from .anvil import AnvilClient
@@ -33,6 +35,19 @@ def create_app() -> FastAPI:
                 "timestamp": block.get("timestamp"),
                 "baseFeePerGas": block.get("baseFeePerGas"),
             }
+        except RuntimeError as error:
+            raise HTTPException(status_code=502, detail=str(error)) from error
+
+    @app.post("/chain/call")
+    async def chain_call(payload: dict) -> dict:
+        try:
+            callParams, block = _chainCallFromJson(payload)
+            return {
+                "block": block,
+                "result": anvil.call(callParams, block),
+            }
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
         except RuntimeError as error:
             raise HTTPException(status_code=502, detail=str(error)) from error
 
@@ -88,3 +103,39 @@ def create_app() -> FastAPI:
             pendingBroadcaster.disconnect(websocket)
 
     return app
+
+
+def _chainCallFromJson(data: dict[str, Any]) -> tuple[dict[str, str], str]:
+    to = _requiredNonEmptyString(data, "to")
+    callData = _requiredNonEmptyString(data, "data")
+    block = _optionalNonEmptyString(data, "block", "latest")
+
+    callParams = {
+        "to": to,
+        "data": callData,
+    }
+
+    for field in ("from", "gas", "gasPrice", "value"):
+        value = data.get(field)
+        if value is not None:
+            if not isinstance(value, str) or value == "":
+                raise ValueError(f"'{field}' must be a non-empty string")
+            callParams[field] = value
+
+    return callParams, block
+
+
+def _requiredNonEmptyString(data: dict[str, Any], field: str) -> str:
+    value = data.get(field)
+    if not isinstance(value, str) or value == "":
+        raise ValueError(f"'{field}' must be a non-empty string")
+
+    return value
+
+
+def _optionalNonEmptyString(data: dict[str, Any], field: str, default: str) -> str:
+    value = data.get(field, default)
+    if not isinstance(value, str) or value == "":
+        raise ValueError(f"'{field}' must be a non-empty string")
+
+    return value

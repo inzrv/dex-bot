@@ -67,6 +67,7 @@ This starts the same app without reload mode.
 GET /health
 GET /ping
 GET /chain/head
+POST /chain/call
 POST /public/tx
 GET /public/tx/{mempoolTxId}
 GET /public/pending
@@ -113,6 +114,29 @@ Example response:
   "parentHash": "0x...",
   "timestamp": "0x...",
   "baseFeePerGas": "0x3b9aca00"
+}
+```
+
+Read contract state with a generic `eth_call` through the builder.
+
+Example: read `getReserves()` from `Pool1`.
+
+```shell
+curl -sS -X POST http://127.0.0.1:9001/chain/call \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"to\": \"0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0\",
+    \"data\": \"0x0902f1ac\",
+    \"block\": \"latest\"
+  }"
+```
+
+The response contains ABI-encoded return data:
+
+```json
+{
+  "block": "latest",
+  "result": "0x..."
 }
 ```
 
