@@ -14,9 +14,9 @@ From the repository root:
 services/block-builder/bin/start-local.zsh
 ```
 
-The script creates `.venv` if needed, installs the package if needed, starts the
-service in the background, writes a PID file, writes a log file, and checks
-`/health`.
+The script creates `.venv` if needed, installs Python dependencies if needed, starts the
+service from the local source tree in the background, writes a PID file, writes
+a log file, and checks `/health`.
 
 Runtime files:
 

@@ -11,6 +11,9 @@ dependencies = [
 [project.scripts]
 block-builder = "block_builder.main:main"
 
+[tool.setuptools]
+packages = ["block_builder"]
+
 [build-system]
 requires = ["setuptools>=69"]
 build-backend = "setuptools.build_meta"

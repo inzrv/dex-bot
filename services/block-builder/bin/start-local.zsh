@@ -54,15 +54,19 @@ if [[ ! -d ".venv" ]]; then
   python3 -m venv .venv
 fi
 
-source .venv/bin/activate
+PYTHON_BIN="${SERVICE_DIR}/.venv/bin/python3"
+if [[ ! -x "${PYTHON_BIN}" ]]; then
+  echo "Python virtual environment is not runnable at ${PYTHON_BIN}" >&2
+  exit 1
+fi
 
-if ! command -v block-builder >/dev/null 2>&1; then
-  echo "Installing block builder package"
-  pip install -e .
+if ! "${PYTHON_BIN}" -c "import fastapi, uvicorn" >/dev/null 2>&1; then
+  echo "Installing block builder dependencies"
+  "${PYTHON_BIN}" -m pip install "fastapi>=0.110" "uvicorn[standard]>=0.27"
 fi
 
 echo "Starting block builder at ${HEALTH_URL}"
-block-builder >"${LOG_FILE}" 2>&1 &
+PYTHONPATH="${SERVICE_DIR}${PYTHONPATH:+:${PYTHONPATH}}" "${PYTHON_BIN}" -m block_builder.main >"${LOG_FILE}" 2>&1 &
 
 PID="$!"
 echo "${PID}" >"${PID_FILE}"
