@@ -22,6 +22,20 @@ def create_app() -> FastAPI:
     async def ping() -> dict:
         return {"message": "pong"}
 
+    @app.get("/chain/head")
+    async def chain_head() -> dict:
+        try:
+            block = anvil.getLatestBlock()
+            return {
+                "blockNumber": block.get("number"),
+                "blockHash": block.get("hash"),
+                "parentHash": block.get("parentHash"),
+                "timestamp": block.get("timestamp"),
+                "baseFeePerGas": block.get("baseFeePerGas"),
+            }
+        except RuntimeError as error:
+            raise HTTPException(status_code=502, detail=str(error)) from error
+
     @app.post("/public/tx")
     async def submit_public_tx(payload: dict) -> dict:
         try:

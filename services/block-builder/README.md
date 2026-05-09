@@ -66,6 +66,7 @@ This starts the same app without reload mode.
 ```text
 GET /health
 GET /ping
+GET /chain/head
 POST /public/tx
 GET /public/tx/{mempoolTxId}
 GET /public/pending
@@ -95,6 +96,24 @@ Expected response:
 
 ```json
 {"status":"ok"}
+```
+
+Read the current chain head through the builder:
+
+```shell
+curl http://127.0.0.1:9001/chain/head
+```
+
+Example response:
+
+```json
+{
+  "blockNumber": "0x1",
+  "blockHash": "0x...",
+  "parentHash": "0x...",
+  "timestamp": "0x...",
+  "baseFeePerGas": "0x3b9aca00"
+}
 ```
 
 Submit a transaction to the in-memory mempool:

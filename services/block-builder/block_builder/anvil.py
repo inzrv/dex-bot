@@ -20,6 +20,9 @@ class AnvilClient:
     def mineBlock(self) -> None:
         self._rpc("evm_mine", [])
 
+    def getLatestBlock(self) -> dict[str, Any]:
+        return self._rpc("eth_getBlockByNumber", ["latest", False])
+
     def getReceipt(self, txHash: str) -> Optional[dict[str, Any]]:
         return self._rpc("eth_getTransactionReceipt", [txHash])
 
