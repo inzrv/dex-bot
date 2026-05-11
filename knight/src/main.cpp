@@ -1,6 +1,7 @@
 #include "common/log.h"
 #include "common/runtime.h"
 #include "common/signal_listener.h"
+#include "common/config.h"
 
 #include <stdexcept>
 #include <string>
@@ -32,24 +33,39 @@ int main(int argc, char* argv[])
         std::istreambuf_iterator<char>{}
     };
 
-    log::info("Main", "Config payload: {}", config_payload);
+    try {
+        Config config;
+        if (!config.from_string(config_payload)) {
+            log::error("Main", "failed to parse config file: {}", config_path);
+            return 1;
+        }
 
-    Runtime runtime;
+        log::debug("Main", "creating runtime factory");
 
-    SignalListener signal_listener([&runtime](int signal) {
-        log::info("Main", "received signal {}, requesting shutdown", signal);
-        runtime.stop();
-    });
+        auto factory = std::make_unique<RuntimeFactory>(std::move(config));
 
-    if (!signal_listener.start()) {
-        log::error("Main", "failed to start signal listener");
+        log::info("Main", "runtime factory created, starting runtime");
+
+        Runtime runtime{*factory};
+
+        SignalListener signal_listener([&runtime](int signal) {
+            log::info("Main", "received signal {}, requesting shutdown", signal);
+            runtime.stop();
+        });
+
+        if (!signal_listener.start()) {
+            log::error("Main", "failed to start signal listener");
+            return 1;
+        }
+
+        runtime.run();
+        signal_listener.stop();
+
+        log::info("Main", "knight finished successfully");
+
+        return 0;
+    } catch (const std::exception& e) {
+        log::error("Main", "fatal error: {}", e.what());
         return 1;
     }
-
-    runtime.run();
-    signal_listener.stop();
-
-    log::info("Main", "Knight stopped");
-
-    return 0;
 }
