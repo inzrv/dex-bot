@@ -1,5 +1,6 @@
 #pragma once
 
+#include "gateway.h"
 #include "config.h"
 #include "queue.h"
 
@@ -9,6 +10,7 @@
 struct RuntimeComponents
 {
     std::shared_ptr<IQueue> queue;
+    std::unique_ptr<Gateway> gateway;
 };
 
 class RuntimeFactory final
@@ -16,8 +18,7 @@ class RuntimeFactory final
 public:
     explicit RuntimeFactory(Config config);
 
-    RuntimeComponents create(boost::asio::io_context& io_ctx,
-                             boost::asio::ssl::context& ssl_ctx);
+    RuntimeComponents create(boost::asio::io_context& io_ctx);
 
 private:
     Config m_config;

@@ -41,7 +41,6 @@ public:
     using drop_handler_t = std::function<void()>;
 
     WsSource(net::io_context& io_ctx,
-             ssl::context& ssl_ctx,
              std::shared_ptr<IQueue> queue,
              std::string host,
              std::string port,
@@ -63,7 +62,6 @@ private:
 
     void on_resolve(beast::error_code ec, tcp::resolver::results_type results);
     void on_connect(beast::error_code ec);
-    void on_ssl_handshake(beast::error_code ec);
     void on_ws_handshake(beast::error_code ec);
     void on_read(beast::error_code ec, size_t bytes);
     void on_close(beast::error_code ec);
@@ -77,9 +75,8 @@ private:
 
 private:
     net::io_context& m_io_ctx;
-    ssl::context& m_ssl_ctx;
     tcp::resolver m_resolver;
-    std::unique_ptr<websocket::stream<beast::ssl_stream<tcp::socket>>> m_ws;
+    std::unique_ptr<websocket::stream<tcp::socket>> m_ws;
     beast::flat_buffer m_buffer;
     net::steady_timer m_reconnect_timer;
 

@@ -4,8 +4,6 @@
 
 #include <boost/asio/connect.hpp>
 #include <boost/beast/core/buffers_to_string.hpp>
-#include <openssl/err.h>
-#include <openssl/ssl.h>
 
 #include <utility>
 
@@ -25,7 +23,6 @@ std::string ws_source_state_to_string(WsSource::State state)
 }
 
 WsSource::WsSource(net::io_context& io_ctx,
-                   ssl::context& ssl_ctx,
                    std::shared_ptr<IQueue> queue,
                    std::string host,
                    std::string port,
@@ -34,9 +31,8 @@ WsSource::WsSource(net::io_context& io_ctx,
                    state_handler_t on_state,
                    drop_handler_t on_drop)
     : m_io_ctx(io_ctx)
-    , m_ssl_ctx(ssl_ctx)
     , m_resolver(net::make_strand(io_ctx))
-    , m_ws(std::make_unique<websocket::stream<beast::ssl_stream<tcp::socket>>>(net::make_strand(io_ctx), ssl_ctx))
+    , m_ws(std::make_unique<websocket::stream<tcp::socket>>(net::make_strand(io_ctx)))
     , m_reconnect_timer(io_ctx)
     , m_queue(std::move(queue))
     , m_host(std::move(host))
@@ -110,9 +106,7 @@ void WsSource::reset_stream()
         beast::get_lowest_layer(*m_ws).close(ec);
     }
 
-    m_ws = std::make_unique<websocket::stream<beast::ssl_stream<tcp::socket>>>(
-        net::make_strand(m_io_ctx),
-        m_ssl_ctx);
+    m_ws = std::make_unique<websocket::stream<tcp::socket>>(net::make_strand(m_io_ctx));
 }
 
 void WsSource::do_resolve()
@@ -168,35 +162,15 @@ void WsSource::on_connect(beast::error_code ec)
     }
 
     log::debug("WsSource", "connected to host");
-    if (!SSL_set_tlsext_host_name(m_ws->next_layer().native_handle(), m_host.c_str())) {
-        const auto ssl_error = static_cast<int>(::ERR_get_error());
-        beast::error_code sni_ec{ssl_error, net::error::get_ssl_category()};
-        log::error("WsSource", "failed to set SNI host={}: {}", m_host, sni_ec.message());
-        fail(sni_ec, "sni");
-        return;
-    }
 
-    m_ws->next_layer().async_handshake(
-        ssl::stream_base::client,
-        beast::bind_front_handler(&WsSource::on_ssl_handshake, this));
-}
-
-void WsSource::on_ssl_handshake(beast::error_code ec)
-{
-    if (ec) {
-        log::error("WsSource", "SSL handshake failed: {}", ec.message());
-        fail(ec, "ssl_handshake");
-        return;
-    }
-
-    log::debug("WsSource", "SSL handshake succeeded");
     m_ws->set_option(websocket::stream_base::timeout::suggested(beast::role_type::client));
     m_ws->set_option(websocket::stream_base::decorator(
         [](websocket::request_type& req) {
-            req.set(beast::http::field::user_agent, "binance-ws-source");
+            req.set(beast::http::field::user_agent, "knight-ws-source");
         }));
 
     const std::string host_header = m_host + ":" + m_port;
+
     m_ws->async_handshake(
         host_header,
         m_target,
