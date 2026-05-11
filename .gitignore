@@ -28,6 +28,11 @@ services/block-builder/runtime/*.log
 services/block-builder/runtime/*.pid
 !services/block-builder/runtime/.gitkeep
 
+# Local Knight runtime files
+knight/runtime/*.log
+knight/runtime/*.pid
+!knight/runtime/.gitkeep
+
 # Foundry build artifacts
 blockchain/cache/
 blockchain/out/

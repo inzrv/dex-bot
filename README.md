@@ -14,6 +14,7 @@ simulations, and backruns.
   pools, backrun executor, and Foundry deployment scripts.
 - `services/block-builder/` - **Forest Gate**: local block builder service with
   public mempool, private bundle, simulation, and chain gateway APIs.
+- `knight/` - **Knight**: C++ arbitrage bot runtime.
 - `scenarios/` - integration scenarios that coordinate the chain and builder
   while the arbitrage bot is being built.
 
@@ -22,6 +23,7 @@ simulations, and backruns.
 - Solidity contracts.
 - Foundry: `anvil`, `forge`, `cast`.
 - Python, FastAPI, Uvicorn.
+- C++23, CMake, Boost, OpenSSL, spdlog, solabi.
 - zsh local workflow scripts.
 
 ## Local Commands
@@ -52,6 +54,20 @@ Stop and clean the local block builder:
 
 ```shell
 services/block-builder/bin/cleanup-local.zsh
+```
+
+### Knight
+
+Build and start the bot runtime:
+
+```shell
+knight/bin/start-local.zsh
+```
+
+Stop and clean the bot runtime:
+
+```shell
+knight/bin/cleanup-local.zsh
 ```
 
 ### Scenarios
@@ -100,3 +116,4 @@ scenarios/bundle-simulation/run.zsh
   Foundry usage.
 - `services/block-builder/README.md` - Forest Gate setup, service runtime, and
   API examples.
+- `knight/README.md` - Knight bot build, config, and runtime scripts.
