@@ -1,0 +1,6 @@
+[submodule "knight/external/spdlog"]
+	path = knight/external/spdlog
+	url = https://github.com/gabime/spdlog.git
+[submodule "knight/external/solabi"]
+	path = knight/external/solabi
+	url = https://github.com/inzrv/solabi.git
