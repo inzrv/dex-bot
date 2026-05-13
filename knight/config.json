@@ -1,4 +1,4 @@
 {
-  "host" : "127.0.0.1",
-  "port" : 9001
+  "builderWsUrl": "ws://127.0.0.1:9001/ws/pending",
+  "tlsVerifyPeer": true
 }

@@ -1,28 +1,28 @@
 #include "gateway.h"
 
 #include "log.h"
-#include "utils/utils.h"
 
 #include <stdexcept>
-#include <thread>
+#include <utility>
 
 Gateway::Gateway(Config config,
                  net::io_context& io_ctx,
                  std::shared_ptr<IQueue> queue)
     : m_config(std::move(config))
     , m_io_ctx(io_ctx)
-    , m_queue(queue)
+    , m_queue(std::move(queue))
 {
-    const auto host = m_config.host;
-    const auto port = std::to_string(m_config.port);
-    const auto mempool_stream_target = std::format("/ws/pending");
+    const auto& endpoint = m_config.builder_ws_endpoint;
+    log::info("Gateway", "mempool stream endpoint: {}", m_config.builder_ws_url);
 
     m_ws_source = std::make_unique<network::WsSource>(
         m_io_ctx,
         m_queue,
-        host,
-        port,
-        mempool_stream_target,
+        endpoint.use_tls,
+        m_config.tls_verify_peer,
+        endpoint.host,
+        endpoint.port,
+        endpoint.target,
         [this](beast::error_code ec, std::string_view where) {
             on_ws_error(ec, where);
         },

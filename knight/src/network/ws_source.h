@@ -1,7 +1,7 @@
 #pragma once
 
-#include "common/queue.h"
 #include "common/envelope.h"
+#include "common/queue.h"
 
 #include <boost/asio.hpp>
 #include <boost/asio/ssl.hpp>
@@ -9,11 +9,12 @@
 #include <boost/beast/ssl.hpp>
 #include <boost/beast/websocket.hpp>
 
-#include <functional>
 #include <chrono>
+#include <functional>
 #include <memory>
 #include <string>
 #include <string_view>
+#include <utility>
 
 namespace net = boost::asio;
 namespace ssl = net::ssl;
@@ -42,6 +43,8 @@ public:
 
     WsSource(net::io_context& io_ctx,
              std::shared_ptr<IQueue> queue,
+             bool use_tls,
+             bool verify_tls_peer,
              std::string host,
              std::string port,
              std::string target,
@@ -56,12 +59,28 @@ public:
     [[nodiscard]] State state() const noexcept;
 
 private:
+    using PlainWsStream = websocket::stream<tcp::socket>;
+    using TlsWsStream = websocket::stream<beast::ssl_stream<tcp::socket>>;
+
+    template <typename Handler>
+    void with_stream(Handler&& handler)
+    {
+        if (m_use_tls) {
+            handler(*m_tls_ws);
+            return;
+        }
+
+        handler(*m_plain_ws);
+    }
+
     void do_resolve();
     void do_read();
     void do_close();
+    void do_ws_handshake();
 
     void on_resolve(beast::error_code ec, tcp::resolver::results_type results);
     void on_connect(beast::error_code ec);
+    void on_tls_handshake(beast::error_code ec);
     void on_ws_handshake(beast::error_code ec);
     void on_read(beast::error_code ec, size_t bytes);
     void on_close(beast::error_code ec);
@@ -76,12 +95,16 @@ private:
 private:
     net::io_context& m_io_ctx;
     tcp::resolver m_resolver;
-    std::unique_ptr<websocket::stream<tcp::socket>> m_ws;
+    ssl::context m_ssl_context;
+    std::unique_ptr<PlainWsStream> m_plain_ws;
+    std::unique_ptr<TlsWsStream> m_tls_ws;
     beast::flat_buffer m_buffer;
     net::steady_timer m_reconnect_timer;
 
     std::shared_ptr<IQueue> m_queue;
 
+    bool m_use_tls{false};
+    bool m_verify_tls_peer{true};
     std::string m_host;
     std::string m_port;
     std::string m_target;

@@ -37,6 +37,16 @@ std::optional<std::string> json_string(const boost::json::object& object, std::s
     return std::string(value->as_string().c_str());
 }
 
+std::optional<bool> json_bool(const boost::json::object& object, std::string_view field)
+{
+    const auto* value = object.if_contains(field);
+    if (!value || !value->is_bool()) {
+        return std::nullopt;
+    }
+
+    return value->as_bool();
+}
+
 std::optional<int64_t> json_int64(const boost::json::object& object, std::string_view field)
 {
     const auto* value = object.if_contains(field);

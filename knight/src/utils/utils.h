@@ -12,6 +12,7 @@ std::optional<boost::json::value> parse_to_json(std::string_view s);
 std::optional<boost::json::object> parse_to_json_object(std::string_view s);
 
 std::optional<std::string> json_string(const boost::json::object& object, std::string_view field);
+std::optional<bool> json_bool(const boost::json::object& object, std::string_view field);
 std::optional<int64_t> json_int64(const boost::json::object& object, std::string_view field);
 std::optional<uint64_t> json_uint64(const boost::json::object& object, std::string_view field);
 const boost::json::array* json_array(const boost::json::object& object, std::string_view field) noexcept;
