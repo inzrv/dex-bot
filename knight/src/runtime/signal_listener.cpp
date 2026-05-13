@@ -1,9 +1,12 @@
-#include "signal_listener.h"
+#include "runtime/signal_listener.h"
 
-#include "log.h"
+#include "common/log.h"
 
 #include <cerrno>
 #include <utility>
+
+namespace runtime
+{
 
 namespace
 {
@@ -139,3 +142,5 @@ void SignalListener::run()
         m_handler(signal);
     }
 }
+
+} // namespace runtime

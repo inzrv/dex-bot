@@ -1,18 +1,17 @@
 #pragma once
 
-#include "runtime_factory.h"
+#include "runtime/runtime_factory.h"
 
 #include <boost/asio.hpp>
-#include <boost/beast/ssl.hpp>
 
 #include <atomic>
-#include <chrono>
-#include <expected>
 #include <memory>
 #include <thread>
 
 namespace net = boost::asio;
-namespace ssl = net::ssl;
+
+namespace runtime
+{
 
 class Runtime
 {
@@ -35,3 +34,5 @@ private:
     std::shared_ptr<IQueue> m_queue;
     std::unique_ptr<gateway::Gateway> m_gateway;
 };
+
+} // namespace runtime

@@ -6,6 +6,9 @@
 #include <pthread.h>
 #include <thread>
 
+namespace runtime
+{
+
 class SignalListener
 {
 public:
@@ -33,3 +36,5 @@ private:
     bool m_signal_set_initialized{false};
     bool m_mask_installed{false};
 };
+
+} // namespace runtime

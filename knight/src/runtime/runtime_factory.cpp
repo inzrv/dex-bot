@@ -1,10 +1,12 @@
-#include "runtime_factory.h"
+#include "runtime/runtime_factory.h"
 
-#include "log.h"
-#include "queue.h"
+#include "common/log.h"
+#include "common/queue.h"
 
-#include <stdexcept>
 #include <utility>
+
+namespace runtime
+{
 
 RuntimeFactory::RuntimeFactory(Config config)
     : m_config(std::move(config))
@@ -25,3 +27,5 @@ RuntimeComponents RuntimeFactory::create(boost::asio::io_context& io_ctx)
     log::info("RuntimeFactory", "created all components");
     return components;
 }
+
+} // namespace runtime

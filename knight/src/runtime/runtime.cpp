@@ -1,11 +1,15 @@
-#include "runtime.h"
+#include "runtime/runtime.h"
 
-#include "log.h"
+#include "common/log.h"
 
+#include <chrono>
 #include <stdexcept>
 #include <utility>
 
-Runtime::Runtime(RuntimeFactory& factory)    
+namespace runtime
+{
+
+Runtime::Runtime(RuntimeFactory& factory)
     : m_io_ctx()
     , m_work_guard(net::make_work_guard(m_io_ctx))
 {
@@ -75,6 +79,6 @@ void Runtime::run_core_loop()
 
         log::info("Runtime", "envelope: source={}, payload={}", item->source, item->payload);
     }
-
-    return;
 }
+
+} // namespace runtime

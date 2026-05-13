@@ -1,11 +1,15 @@
 #pragma once
 
+#include "common/config.h"
+#include "common/queue.h"
 #include "gateway/gateway.h"
-#include "config.h"
-#include "queue.h"
 
 #include <boost/asio/io_context.hpp>
-#include <boost/asio/ssl/context.hpp>
+
+#include <memory>
+
+namespace runtime
+{
 
 struct RuntimeComponents
 {
@@ -23,3 +27,5 @@ public:
 private:
     Config m_config;
 };
+
+} // namespace runtime

@@ -1,6 +1,6 @@
 #include "common/log.h"
-#include "common/runtime.h"
-#include "common/signal_listener.h"
+#include "runtime/runtime.h"
+#include "runtime/signal_listener.h"
 #include "common/config.h"
 
 #include <stdexcept>
@@ -42,15 +42,15 @@ int main(int argc, char* argv[])
 
         log::debug("Main", "creating runtime factory");
 
-        auto factory = std::make_unique<RuntimeFactory>(std::move(config));
+        auto factory = std::make_unique<runtime::RuntimeFactory>(std::move(config));
 
         log::info("Main", "runtime factory created, starting runtime");
 
-        Runtime runtime{*factory};
+        runtime::Runtime bot_runtime{*factory};
 
-        SignalListener signal_listener([&runtime](int signal) {
+        runtime::SignalListener signal_listener([&bot_runtime](int signal) {
             log::info("Main", "received signal {}, requesting shutdown", signal);
-            runtime.stop();
+            bot_runtime.stop();
         });
 
         if (!signal_listener.start()) {
@@ -58,7 +58,7 @@ int main(int argc, char* argv[])
             return 1;
         }
 
-        runtime.run();
+        bot_runtime.run();
         signal_listener.stop();
 
         log::info("Main", "knight finished successfully");
