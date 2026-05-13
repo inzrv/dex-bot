@@ -33,5 +33,5 @@ private:
     std::atomic<bool> m_running{false};
 
     std::shared_ptr<IQueue> m_queue;
-    std::unique_ptr<Gateway> m_gateway;
+    std::unique_ptr<gateway::Gateway> m_gateway;
 };

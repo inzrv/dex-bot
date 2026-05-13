@@ -38,7 +38,7 @@ void Runtime::run()
 
     const auto wait_res = m_gateway->wait_until_ready(std::chrono::seconds{10});
     if (!wait_res) {
-        log::error("Runtime", "failed to open gateway: {}", error_to_string(wait_res.error()));
+        log::error("Runtime", "failed to open gateway: {}", gateway::error_to_string(wait_res.error()));
         return;
     }
 

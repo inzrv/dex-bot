@@ -1,9 +1,11 @@
-#include "gateway.h"
+#include "gateway/gateway.h"
 
-#include "log.h"
+#include "common/log.h"
 
-#include <stdexcept>
 #include <utility>
+
+namespace gateway
+{
 
 Gateway::Gateway(Config config,
                  net::io_context& io_ctx,
@@ -90,7 +92,7 @@ void Gateway::on_ws_error(beast::error_code ec, std::string_view where)
     m_state = State::FAILED;
 }
 
-std::expected<void, GatewayError> Gateway::wait_until_ready(std::chrono::milliseconds timeout)
+std::expected<void, Error> Gateway::wait_until_ready(std::chrono::milliseconds timeout)
 {
     std::unique_lock lock{m_state_mutex};
     const bool ok = m_state_cv.wait_for(lock, timeout, [this] {
@@ -98,12 +100,14 @@ std::expected<void, GatewayError> Gateway::wait_until_ready(std::chrono::millise
     });
 
     if (!ok) {
-        return std::unexpected(GatewayError::TIMEOUT);
+        return std::unexpected(Error::TIMEOUT);
     }
 
     if (m_state == State::FAILED) {
-        return std::unexpected(GatewayError::REQUEST_ERROR);
+        return std::unexpected(Error::REQUEST_ERROR);
     }
 
     return {};
 }
+
+} // namespace gateway

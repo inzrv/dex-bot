@@ -1,6 +1,6 @@
 #pragma once
 
-#include "gateway.h"
+#include "gateway/gateway.h"
 #include "config.h"
 #include "queue.h"
 
@@ -10,7 +10,7 @@
 struct RuntimeComponents
 {
     std::shared_ptr<IQueue> queue;
-    std::unique_ptr<Gateway> gateway;
+    std::unique_ptr<gateway::Gateway> gateway;
 };
 
 class RuntimeFactory final

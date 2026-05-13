@@ -1,13 +1,18 @@
 #pragma once
 
-#include "queue.h"
-#include "errors.h"
-#include "config.h"
+#include "common/config.h"
+#include "common/queue.h"
+#include "gateway/errors.h"
 #include "network/ws_source.h"
 
-#include <memory>
 #include <chrono>
+#include <condition_variable>
 #include <expected>
+#include <memory>
+#include <mutex>
+
+namespace gateway
+{
 
 class Gateway final
 {
@@ -26,7 +31,7 @@ public:
     void open();
     void close();
     void reopen();
-    std::expected<void, GatewayError> wait_until_ready(std::chrono::milliseconds timeout);
+    std::expected<void, Error> wait_until_ready(std::chrono::milliseconds timeout);
     [[nodiscard]] State state() const noexcept
     {
         return m_state;
@@ -47,3 +52,5 @@ private:
 
     State m_state{State::CLOSED};
 };
+
+} // namespace gateway
