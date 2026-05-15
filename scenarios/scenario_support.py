@@ -68,6 +68,17 @@ def start_block_builder() -> None:
     wait_for_builder()
 
 
+# Stops the local block builder managed by the local script.
+def cleanup_block_builder() -> None:
+    run([str(SERVICE_DIR / "bin" / "cleanup-local.zsh")], cwd=REPO_ROOT)
+
+
+# Restarts the local block builder with a fresh in-memory state.
+def restart_block_builder() -> None:
+    cleanup_block_builder()
+    start_block_builder()
+
+
 # Waits for the block builder health endpoint to become available.
 def wait_for_builder() -> None:
     for _ in range(30):

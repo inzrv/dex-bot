@@ -110,6 +110,12 @@ Check that bundle simulation returns receipts without changing chain state:
 scenarios/bundle-simulation/run.zsh
 ```
 
+Check public mempool sequence numbers and snapshot boundaries:
+
+```shell
+scenarios/mempool-sequence/run.zsh
+```
+
 ## More Detail
 
 - `blockchain/README.md` - Dark Forest local chain, contracts, deployment output, and
