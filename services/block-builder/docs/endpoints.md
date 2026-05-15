@@ -137,6 +137,7 @@ Expected response:
 ```json
 {
   "mempoolTxId": "mp-1234567890abcdef1234567890abcdef",
+  "seqNum": 42,
   "status": "pending",
   "chainTxHash": null,
   "transaction": {
@@ -170,6 +171,7 @@ Expected response:
 ```json
 {
   "mempoolTxId": "mp-1234567890abcdef1234567890abcdef",
+  "seqNum": 42,
   "status": "pending",
   "chainTxHash": null,
   "transaction": {
@@ -202,9 +204,11 @@ Expected response:
 
 ```json
 {
+  "snapshotSeq": 42,
   "transactions": [
     {
       "mempoolTxId": "mp-1234567890abcdef1234567890abcdef",
+      "seqNum": 42,
       "status": "pending",
       "chainTxHash": null,
       "transaction": {
@@ -369,6 +373,7 @@ Expected message:
   "type": "pending_transaction",
   "record": {
     "mempoolTxId": "mp-1234567890abcdef1234567890abcdef",
+    "seqNum": 42,
     "status": "pending",
     "chainTxHash": null,
     "transaction": {

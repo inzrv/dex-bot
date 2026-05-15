@@ -17,7 +17,7 @@ class PendingTransactionBroadcaster:
     async def broadcast(self, message: dict) -> None:
         disconnected: list[WebSocket] = []
 
-        for websocket in self._subscribers:
+        for websocket in list(self._subscribers):
             try:
                 await websocket.send_json(message)
             except Exception:

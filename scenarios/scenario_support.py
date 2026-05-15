@@ -505,7 +505,7 @@ def public_transaction(mempool_tx_id: str) -> dict[str, Any]:
     return builder_request("GET", f"/public/tx/{mempool_tx_id}")
 
 
-# Lists pending public mempool transaction records.
+# Reads a public mempool snapshot with the latest builder sequence number.
 def pending_public_transactions() -> dict[str, Any]:
     return builder_request("GET", "/public/pending")
 

@@ -75,12 +75,7 @@ def create_app() -> FastAPI:
 
     @app.get("/public/pending")
     async def get_pending_transactions() -> dict:
-        return {
-            "transactions": [
-                record.toJson()
-                for record in mempool.pendingTransactions()
-            ]
-        }
+        return mempool.pendingSnapshot()
 
     @app.post("/private/bundle/simulate")
     async def simulate_private_bundle(payload: dict) -> dict:
