@@ -18,11 +18,12 @@ RuntimeComponents RuntimeFactory::create(boost::asio::io_context& io_ctx)
 
     RuntimeComponents components;
 
-    components.queue = std::make_shared<Queue<10'000>>();
-    components.gateway = std::make_unique<gateway::Gateway>(
+    components.pending_queue = std::make_shared<Queue<10'000>>();
+    components.builder_rest_client = std::make_unique<builder::RestClient>(m_config, io_ctx);
+    components.builder_pending_feed = std::make_unique<builder::PendingFeed>(
         m_config,
         io_ctx,
-        components.queue);
+        components.pending_queue);
 
     log::info("RuntimeFactory", "created all components");
     return components;

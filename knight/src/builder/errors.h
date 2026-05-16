@@ -2,7 +2,7 @@
 
 #include <string_view>
 
-namespace gateway
+namespace builder
 {
 
 enum class Error
@@ -18,7 +18,7 @@ inline std::string_view error_to_string(Error error) noexcept
         case Error::TIMEOUT: return "TIMEOUT";
     }
 
-    return "UNKNOWN_GATEWAY_ERROR";
+    return "UNKNOWN_BUILDER_ERROR";
 }
 
-} // namespace gateway
+} // namespace builder

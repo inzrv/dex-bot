@@ -2,7 +2,7 @@
 
 #include "common/config.h"
 #include "common/queue.h"
-#include "gateway/errors.h"
+#include "builder/errors.h"
 #include "network/ws_source.h"
 
 #include <chrono>
@@ -11,10 +11,10 @@
 #include <memory>
 #include <mutex>
 
-namespace gateway
+namespace builder
 {
 
-class Gateway final
+class PendingFeed final
 {
 public:
     enum class State
@@ -24,14 +24,15 @@ public:
         FAILED
     };
 
-    Gateway(Config config,
-            net::io_context& io_ctx,
-            std::shared_ptr<IQueue> queue);
+    PendingFeed(Config config,
+                net::io_context& io_ctx,
+                std::shared_ptr<IQueue> queue);
 
     void open();
     void close();
     void reopen();
     std::expected<void, Error> wait_until_ready(std::chrono::milliseconds timeout);
+
     [[nodiscard]] State state() const noexcept
     {
         return m_state;
@@ -53,4 +54,4 @@ private:
     State m_state{State::CLOSED};
 };
 
-} // namespace gateway
+} // namespace builder

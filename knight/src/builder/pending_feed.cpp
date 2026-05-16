@@ -1,21 +1,21 @@
-#include "gateway/gateway.h"
+#include "builder/pending_feed.h"
 
 #include "common/log.h"
 
 #include <utility>
 
-namespace gateway
+namespace builder
 {
 
-Gateway::Gateway(Config config,
-                 net::io_context& io_ctx,
-                 std::shared_ptr<IQueue> queue)
+PendingFeed::PendingFeed(Config config,
+                         net::io_context& io_ctx,
+                         std::shared_ptr<IQueue> queue)
     : m_config(std::move(config))
     , m_io_ctx(io_ctx)
     , m_queue(std::move(queue))
 {
     const auto& endpoint = m_config.builder_ws_endpoint;
-    log::info("Gateway", "mempool stream endpoint: {}", m_config.builder_ws_url);
+    log::info("PendingFeed", "mempool stream endpoint: {}", m_config.builder_ws_url);
 
     m_ws_source = std::make_unique<network::WsSource>(
         m_io_ctx,
@@ -32,41 +32,41 @@ Gateway::Gateway(Config config,
             on_ws_state(state);
         },
         []() {
-            log::warn("Gateway", "drop queue overflow");
+            log::warn("PendingFeed", "drop queue overflow");
         }
     );
 }
 
-void Gateway::open()
+void PendingFeed::open()
 {
     if (m_state == State::OPEN) {
         return;
     }
 
-    log::info("Gateway", "opening mempool stream...");
+    log::info("PendingFeed", "opening mempool stream...");
     m_ws_source->start();
 }
 
-void Gateway::close()
+void PendingFeed::close()
 {
     if (m_state == State::CLOSED) {
         return;
     }
 
-    log::info("Gateway", "closing mempool stream...");
+    log::info("PendingFeed", "closing mempool stream...");
     m_ws_source->stop();
 }
 
-void Gateway::reopen()
+void PendingFeed::reopen()
 {
-    log::info("Gateway", "reopen requested");
+    log::info("PendingFeed", "reopen requested");
     m_ws_source->restart();
 }
 
-void Gateway::on_ws_state(network::WsSource::State state)
+void PendingFeed::on_ws_state(network::WsSource::State state)
 {
     std::lock_guard lock{m_state_mutex};
-    log::info("Gateway", "websocket state: {}", ws_source_state_to_string(state));
+    log::info("PendingFeed", "websocket state: {}", ws_source_state_to_string(state));
     switch (state) {
         case network::WsSource::State::STOPPED:
             m_state = State::CLOSED;
@@ -86,13 +86,15 @@ void Gateway::on_ws_state(network::WsSource::State state)
     m_state_cv.notify_all();
 }
 
-void Gateway::on_ws_error(beast::error_code ec, std::string_view where)
+void PendingFeed::on_ws_error(beast::error_code ec, std::string_view where)
 {
-    log::error("Gateway", "websocket error: {} {}", where, ec.message());
+    log::error("PendingFeed", "websocket error: {} {}", where, ec.message());
+    std::lock_guard lock{m_state_mutex};
     m_state = State::FAILED;
+    m_state_cv.notify_all();
 }
 
-std::expected<void, Error> Gateway::wait_until_ready(std::chrono::milliseconds timeout)
+std::expected<void, Error> PendingFeed::wait_until_ready(std::chrono::milliseconds timeout)
 {
     std::unique_lock lock{m_state_mutex};
     const bool ok = m_state_cv.wait_for(lock, timeout, [this] {
@@ -110,4 +112,4 @@ std::expected<void, Error> Gateway::wait_until_ready(std::chrono::milliseconds t
     return {};
 }
 
-} // namespace gateway
+} // namespace builder
